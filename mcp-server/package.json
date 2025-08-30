@@ -6,12 +6,16 @@
   "type": "module",
   "scripts": {
     "build": "pnpm run build:bridge && pnpm run build:ts",
-    "build:bridge": "cd ../rune-bridge && napi build --platform --release ../mcp-server",
+    "build:bridge": "cargo build --release --manifest-path ../rune-bridge/Cargo.toml && cp ../target/release/librune_bridge.dylib rune.node 2>/dev/null || cp ../target/release/librune_bridge.so rune.node 2>/dev/null || cp ../target/release/rune_bridge.dll rune.node 2>/dev/null",
     "build:ts": "tsc",
-    "dev": "pnpm run build:bridge && tsx src/index.ts",
+    "dev": "pnpm run build:bridge && node --enable-source-maps dist/index.js",
+    "dev:ts": "tsx src/index.ts",
     "start": "node dist/index.js",
+    "inspect": "npx @modelcontextprotocol/inspector node dist/index.js",
+    "inspect:alt": "npx @modelcontextprotocol/inspector --port 7274 --proxy-port 7277 node dist/index.js",
     "test": "jest",
-    "clean": "rm -rf dist *.node"
+    "clean": "rm -rf dist *.node",
+    "postinstall": "node scripts/postinstall.js"
   },
   "keywords": [
     "mcp",
@@ -26,7 +30,6 @@
     "zod": "^4.1.5"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^3.1.5",
     "@types/node": "^24.3.0",
     "@typescript-eslint/eslint-plugin": "^8.19.1",
     "@typescript-eslint/parser": "^8.19.1",

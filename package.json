@@ -8,12 +8,19 @@
     "mcp-server"
   ],
   "scripts": {
-    "build": "pnpm -r build",
-    "dev": "pnpm -r dev",
-    "test": "pnpm -r test",
-    "lint": "pnpm -r lint",
-    "format": "prettier --write .",
-    "typecheck": "pnpm -r typecheck"
+    "build": "pnpm run build:rust && pnpm run build:bridge && pnpm run build:ts",
+    "build:rust": "cargo build --release",
+    "build:bridge": "cd mcp-server && pnpm run build:bridge",
+    "build:ts": "cd mcp-server && pnpm run build:ts",
+    "dev": "pnpm run build:rust && cd mcp-server && pnpm run dev",
+    "inspect": "cd mcp-server && pnpm run inspect",
+    "inspect:alt": "cd mcp-server && pnpm run inspect:alt",
+    "inspect:kill": "lsof -ti :6277,6274,7277,7274 | xargs kill -9 2>/dev/null || true",
+    "test": "cargo test && pnpm -r test",
+    "lint": "cargo clippy --all-targets --all-features -- -D warnings && pnpm -r lint",
+    "format": "cargo fmt && prettier --write .",
+    "typecheck": "pnpm -r typecheck",
+    "clean": "cargo clean && pnpm -r clean"
   },
   "devDependencies": {
     "@eslint/js": "^9.34.0",

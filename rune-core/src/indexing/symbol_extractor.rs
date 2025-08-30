@@ -597,11 +597,11 @@ mod tests {
             fn main() {
                 println!("Hello");
             }
-            
+
             struct MyStruct {
                 field: String,
             }
-            
+
             impl MyStruct {
                 fn new() -> Self {
                     Self { field: String::new() }

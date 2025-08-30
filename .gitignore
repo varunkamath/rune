@@ -85,6 +85,7 @@ tantivy_index/
 # LLM
 MCP_IMPLEMENTATION_RESEARCH.md
 CLAUDE.md
+MCP_SERVER.md
 
 # Embeddings & Models
 models/
