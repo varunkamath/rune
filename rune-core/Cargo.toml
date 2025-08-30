@@ -62,7 +62,7 @@ indexmap = { workspace = true }
 walkdir = "2.5"
 ignore = "0.4"  # gitignore-aware file traversal
 blake3 = "1.5"  # fast hashing
-lru = "0.12"
+lru = "0.16"
 bytes = "1.7"
 futures = "0.3"
 crossbeam-channel = "0.5"
@@ -72,10 +72,10 @@ num_cpus = "1.16"
 reqwest = { version = "0.12", features = ["json", "stream"] }
 
 # Embedding support (we'll use candle for local inference)
-candle-core = { version = "0.8", optional = true }
-candle-nn = { version = "0.8", optional = true }
-candle-transformers = { version = "0.8", optional = true }
-tokenizers = { version = "0.21", default-features = false, features = ["onig"], optional = true }
+candle-core = { version = "0.9", optional = true }
+candle-nn = { version = "0.9", optional = true }
+candle-transformers = { version = "0.9", optional = true }
+tokenizers = { version = "0.22", default-features = false, features = ["onig"], optional = true }
 
 [dev-dependencies]
 mockall = { workspace = true }
@@ -87,4 +87,3 @@ pretty_assertions = "1.4"
 [features]
 default = ["embeddings"]
 embeddings = ["candle-core", "candle-nn", "candle-transformers", "tokenizers"]
-

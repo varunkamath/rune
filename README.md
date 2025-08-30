@@ -1,12 +1,16 @@
 # Rune - MCP Code Context Engine
 
-Rune is a high-performance MCP (Model Context Protocol) server that provides multi-modal code search capabilities for AI coding agents. It supports literal, regex, symbol, and semantic search across multi-repository workspaces.
+Rune is a high-performance MCP (Model Context Protocol) server that provides
+multi-modal code search capabilities for AI coding agents. It supports literal,
+regex, symbol, and semantic search across multi-repository workspaces.
 
 ## Features
 
-- 🔍 **Multi-modal Search**: Literal, regex, symbol, semantic, and hybrid search modes
+- 🔍 **Multi-modal Search**: Literal, regex, symbol, semantic, and hybrid search
+  modes
 - 🚀 **High Performance**: Rust core with sub-100ms search latency
-- 🌐 **Language Agnostic**: Support for 100+ programming languages via tree-sitter
+- 🌐 **Language Agnostic**: Support for 100+ programming languages via
+  tree-sitter
 - 🧠 **Semantic Understanding**: Local code embeddings with SantaCoder
 - 📁 **Multi-Repository**: Search across multiple repositories simultaneously
 - 🔄 **Real-time Indexing**: Automatic incremental indexing with file watching
@@ -24,12 +28,14 @@ Rune is a high-performance MCP (Model Context Protocol) server that provides mul
 ### Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/yourusername/rune.git
 cd rune
 ```
 
-2. Install dependencies:
+1. Install dependencies:
+
 ```bash
 # Install Node.js dependencies
 cd mcp-server
@@ -40,18 +46,21 @@ cd ..
 cargo build --release
 ```
 
-3. Start Qdrant:
+1. Start Qdrant:
+
 ```bash
 docker-compose up -d
 ```
 
-4. Build the native bridge:
+1. Build the native bridge:
+
 ```bash
 cd mcp-server
 npm run build:bridge
 ```
 
-5. Start the MCP server:
+1. Start the MCP server:
+
 ```bash
 npm run dev
 ```
@@ -89,7 +98,9 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 The MCP server provides the following tools:
 
 #### `search`
+
 Multi-modal code search with various modes:
+
 - **literal**: Exact text matching
 - **regex**: Regular expression patterns
 - **symbol**: AST-based symbol search
@@ -97,6 +108,7 @@ Multi-modal code search with various modes:
 - **hybrid**: Combined keyword and semantic search
 
 Example:
+
 ```json
 {
   "tool": "search",
@@ -109,17 +121,20 @@ Example:
 ```
 
 #### `index_status`
+
 Get current indexing statistics and status.
 
 #### `reindex`
+
 Trigger manual reindexing of repositories.
 
 #### `configure`
+
 Update Rune configuration at runtime.
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │           MCP Client (Claude, etc)          │
 └─────────────────┬───────────────────────────┘
@@ -141,7 +156,7 @@ Update Rune configuration at runtime.
 
 ### Project Structure
 
-```
+```text
 rune/
 ├── rune-core/          # Rust core search engine
 ├── rune-bridge/        # NAPI-RS bindings
@@ -179,6 +194,7 @@ cd mcp-server && npm run dev
 ## Performance
 
 Target performance metrics:
+
 - File indexing: 1000 files/second
 - Keyword search: <50ms
 - Semantic search: <200ms
@@ -188,18 +204,21 @@ Target performance metrics:
 ## Troubleshooting
 
 ### Native module not found
+
 ```bash
 cd mcp-server
 npm run build:bridge
 ```
 
 ### Qdrant connection failed
+
 ```bash
 docker-compose up -d
 docker-compose ps  # Check if Qdrant is running
 ```
 
 ### Slow indexing
+
 - Increase `RUNE_INDEXING_THREADS`
 - Check disk I/O performance
 - Ensure sufficient RAM for caching

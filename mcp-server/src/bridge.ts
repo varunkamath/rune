@@ -12,7 +12,7 @@ export interface RuneBridgeInstance {
 }
 
 export interface RuneBridgeConstructor {
-  new(): RuneBridgeInstance;
+  new (): RuneBridgeInstance;
 }
 
 // The actual bridge implementation will be loaded from the .node file
@@ -28,21 +28,21 @@ try {
   } catch (e2) {
     // If the native module isn't built yet, provide a mock implementation
     console.error('Native bridge not found. Please run "npm run build:bridge" first.');
-    
+
     // Mock implementation for development
     class MockRuneBridge {
       async initialize(configJson: string): Promise<void> {
         console.error('Mock: Initializing with config:', configJson);
       }
-      
+
       async start(): Promise<void> {
         console.error('Mock: Starting engine');
       }
-      
+
       async stop(): Promise<void> {
         console.error('Mock: Stopping engine');
       }
-      
+
       async search(queryJson: string): Promise<string> {
         console.error('Mock: Searching with query:', queryJson);
         return JSON.stringify({
@@ -52,7 +52,7 @@ try {
           search_time_ms: 0,
         });
       }
-      
+
       async getStats(): Promise<string> {
         console.error('Mock: Getting stats');
         return JSON.stringify({
@@ -62,16 +62,16 @@ try {
           cache_size_bytes: 0,
         });
       }
-      
+
       async reindex(): Promise<void> {
         console.error('Mock: Reindexing');
       }
-      
+
       async echo(message: string): Promise<string> {
         return `Mock echo: ${message}`;
       }
     }
-    
+
     bridge = MockRuneBridge as unknown as RuneBridgeConstructor;
   }
 }

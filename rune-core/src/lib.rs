@@ -1,3 +1,5 @@
+#![allow(dead_code)] // TODO: Remove when implementation is complete
+
 pub mod error;
 pub mod indexing;
 pub mod search;
@@ -19,19 +21,19 @@ pub use error::RuneError;
 pub struct Config {
     /// Workspace root directories
     pub workspace_roots: Vec<PathBuf>,
-    
+
     /// Cache directory for indexes and embeddings
     pub cache_dir: PathBuf,
-    
+
     /// Maximum file size to index (in bytes)
     pub max_file_size: usize,
-    
+
     /// Number of worker threads for indexing
     pub indexing_threads: usize,
-    
+
     /// Enable semantic search
     pub enable_semantic: bool,
-    
+
     /// Languages to support
     pub languages: Vec<String>,
 }
@@ -68,19 +70,22 @@ pub struct RuneEngine {
 impl RuneEngine {
     /// Create a new Rune engine with the given configuration
     pub async fn new(config: Config) -> Result<Self> {
-        info!("Initializing Rune engine with {} workspace roots", config.workspace_roots.len());
-        
+        info!(
+            "Initializing Rune engine with {} workspace roots",
+            config.workspace_roots.len()
+        );
+
         let config = Arc::new(config);
-        
+
         // Initialize storage backend
         let storage = storage::StorageBackend::new(&config.cache_dir).await?;
-        
+
         // Initialize search engine
         let search_engine = search::SearchEngine::new(config.clone(), storage.clone()).await?;
-        
+
         // Initialize indexer
         let indexer = indexing::Indexer::new(config.clone(), storage.clone()).await?;
-        
+
         Ok(Self {
             config,
             search_engine,
@@ -88,37 +93,37 @@ impl RuneEngine {
             storage,
         })
     }
-    
+
     /// Start the engine (begins file watching and indexing)
     pub async fn start(&mut self) -> Result<()> {
         info!("Starting Rune engine");
-        
+
         // Start file watcher
         self.indexer.start_watching().await?;
-        
+
         // Initial index of workspace
         self.indexer.index_workspaces().await?;
-        
+
         Ok(())
     }
-    
+
     /// Stop the engine
     pub async fn stop(&mut self) -> Result<()> {
         info!("Stopping Rune engine");
         self.indexer.stop_watching().await?;
         Ok(())
     }
-    
+
     /// Get the search engine
     pub fn search(&self) -> &search::SearchEngine {
         &self.search_engine
     }
-    
+
     /// Get the indexer
     pub fn indexer(&self) -> &indexing::Indexer {
         &self.indexer
     }
-    
+
     /// Get engine statistics
     pub async fn stats(&self) -> Result<EngineStats> {
         Ok(EngineStats {
@@ -142,7 +147,7 @@ pub struct EngineStats {
 mod tests {
     use super::*;
     use tempfile::tempdir;
-    
+
     #[tokio::test]
     async fn test_engine_creation() {
         let tmp_dir = tempdir().unwrap();
@@ -151,7 +156,7 @@ mod tests {
             cache_dir: tmp_dir.path().join(".cache"),
             ..Default::default()
         };
-        
+
         let engine = RuneEngine::new(config).await;
         assert!(engine.is_ok());
     }

@@ -1,0 +1,135 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+  # General formatting and cleanup
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^(.*\.md|.*\.node)$
+      - id: end-of-file-fixer
+        exclude: ^(.*\.node|target/|dist/)$
+      - id: check-yaml
+        exclude: ^(.github/workflows/)
+      - id: check-added-large-files
+        args: ["--maxkb=1000"]
+        exclude: ^(.*\.node|.*\.onnx|.*\.bin|.*\.safetensors)$
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+
+  # Rust formatting and linting
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: cargo fmt
+        language: system
+        types: [rust]
+        args: ["--all", "--"]
+        pass_filenames: false
+
+      - id: cargo-check
+        name: cargo check
+        entry: cargo check
+        language: system
+        types: [rust]
+        pass_filenames: false
+        args: ["--all-targets", "--all-features"]
+
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: cargo clippy
+        language: system
+        types: [rust]
+        pass_filenames: false
+        args: ["--all-targets", "--all-features", "--", "-D", "warnings"]
+
+  # TypeScript/JavaScript formatting and linting
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier
+        entry: pnpm exec prettier --write
+        language: system
+        types_or: [javascript, jsx, ts, tsx, json, yaml, markdown]
+        exclude: ^(dist/|target/|.*\.node|pnpm-lock\.yaml)$
+        require_serial: true
+
+      - id: eslint
+        name: eslint
+        entry: pnpm exec eslint --fix
+        language: system
+        types_or: [javascript, jsx, ts, tsx]
+        exclude: ^(dist/|.*\.node)$
+        files: ^mcp-server/
+        require_serial: true
+
+      - id: typescript
+        name: typescript
+        entry: bash -c 'cd mcp-server && pnpm exec tsc --noEmit'
+        language: system
+        types: [ts, tsx]
+        pass_filenames: false
+        files: ^mcp-server/
+
+  # Markdown formatting
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.45.0
+    hooks:
+      - id: markdownlint
+        args: ["--fix"]
+        exclude: ^(CLAUDE\.md|MCP_IMPLEMENTATION_RESEARCH\.md)$
+
+  # YAML formatting
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.37.1
+    hooks:
+      - id: yamllint
+        args: ["-d", "{extends: relaxed, rules: {line-length: {max: 120}}}"]
+
+  # Security checks
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
+        exclude: ^(.*\.lock|.*\.node|pnpm-lock\.yaml)$
+
+  # Dockerfile linting
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.13.1-beta
+    hooks:
+      - id: hadolint-docker
+        files: Dockerfile.*
+
+  # Shell script linting
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+
+# Configuration for specific tools
+exclude: |
+  (?x)^(
+    target/|
+    dist/|
+    node_modules/|
+    .*\.node|
+    .*\.lock|
+    pnpm-lock\.yaml|
+    Cargo\.lock|
+    qdrant_storage/|
+    \.rune_cache/|
+    \.cache/|
+    models/|
+    MCP_IMPLEMENTATION_RESEARCH\.md
+  )$
+
+default_stages: [pre-commit]
+fail_fast: false
+minimum_pre_commit_version: "3.0.0"

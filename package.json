@@ -1,0 +1,27 @@
+{
+  "name": "rune-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Rune MCP Code Context Engine",
+  "workspaces": [
+    "mcp-server"
+  ],
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm -r dev",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "format": "prettier --write .",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.34.0",
+    "@typescript-eslint/eslint-plugin": "^8.19.1",
+    "@typescript-eslint/parser": "^8.19.1",
+    "eslint": "^9.18.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.9.2"
+  },
+  "packageManager": "pnpm@10.15.0"
+}

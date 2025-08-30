@@ -23,9 +23,9 @@ const ConfigSchema = z.object({
   maxFileSize: z.number().default(10 * 1024 * 1024),
   indexingThreads: z.number().default(4),
   enableSemantic: z.boolean().default(true),
-  languages: z.array(z.string()).default([
-    'rust', 'javascript', 'typescript', 'python', 'go', 'java', 'cpp'
-  ]),
+  languages: z
+    .array(z.string())
+    .default(['rust', 'javascript', 'typescript', 'python', 'go', 'java', 'cpp']),
 });
 
 // Search query schema
@@ -167,21 +167,23 @@ class RuneMcpServer {
           case 'search': {
             const args = SearchQuerySchema.parse(request.params.arguments);
             await this.ensureInitialized();
-            
-            const results = await this.bridge.search(JSON.stringify({
-              query: args.query,
-              mode: args.mode,
-              repositories: args.repositories,
-              file_patterns: args.filePatterns,
-              limit: args.limit,
-              offset: args.offset,
-            }));
-            
+
+            const results = await this.bridge.search(
+              JSON.stringify({
+                query: args.query,
+                mode: args.mode,
+                repositories: args.repositories,
+                file_patterns: args.filePatterns,
+                limit: args.limit,
+                offset: args.offset,
+              })
+            );
+
             return {
               content: [{ type: 'text', text: results }],
             };
           }
-          
+
           case 'index_status': {
             await this.ensureInitialized();
             const stats = await this.bridge.getStats();
@@ -189,7 +191,7 @@ class RuneMcpServer {
               content: [{ type: 'text', text: stats }],
             };
           }
-          
+
           case 'reindex': {
             await this.ensureInitialized();
             await this.bridge.reindex();
@@ -197,7 +199,7 @@ class RuneMcpServer {
               content: [{ type: 'text', text: 'Reindexing started' }],
             };
           }
-          
+
           case 'configure': {
             const config = ConfigSchema.parse(request.params.arguments);
             await this.initializeEngine(config);
@@ -205,12 +207,9 @@ class RuneMcpServer {
               content: [{ type: 'text', text: 'Configuration updated' }],
             };
           }
-          
+
           default:
-            throw new McpError(
-              ErrorCode.MethodNotFound,
-              `Unknown tool: ${request.params.name}`
-            );
+            throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
         }
       } catch (error) {
         if (error instanceof z.ZodError) {
@@ -244,11 +243,8 @@ class RuneMcpServer {
           contents: [{ uri: request.params.uri, mimeType: 'application/json', text: stats }],
         };
       }
-      
-      throw new McpError(
-        ErrorCode.InvalidRequest,
-        `Unknown resource: ${request.params.uri}`
-      );
+
+      throw new McpError(ErrorCode.InvalidRequest, `Unknown resource: ${request.params.uri}`);
     });
 
     // List prompts
@@ -282,13 +278,13 @@ class RuneMcpServer {
     // Get prompt
     this.server.setRequestHandler(GetPromptRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
-      
+
       switch (name) {
         case 'code_context': {
           if (!args?.query) {
             throw new McpError(ErrorCode.InvalidParams, 'Query argument is required');
           }
-          
+
           return {
             description: `Find relevant code context for: ${args.query}`,
             messages: [
@@ -302,12 +298,12 @@ class RuneMcpServer {
             ],
           };
         }
-        
+
         case 'find_definition': {
           if (!args?.symbol) {
             throw new McpError(ErrorCode.InvalidParams, 'Symbol argument is required');
           }
-          
+
           return {
             description: `Find definition of symbol: ${args.symbol}`,
             messages: [
@@ -321,7 +317,7 @@ class RuneMcpServer {
             ],
           };
         }
-        
+
         default:
           throw new McpError(ErrorCode.InvalidRequest, `Unknown prompt: ${name}`);
       }
@@ -335,17 +331,19 @@ class RuneMcpServer {
   }
 
   private async initializeEngine(config?: z.infer<typeof ConfigSchema>) {
-    const finalConfig = config || this.getConfigFromEnv();
-    
-    await this.bridge.initialize(JSON.stringify({
-      workspace_roots: finalConfig.workspaceRoots,
-      cache_dir: finalConfig.cacheDir,
-      max_file_size: finalConfig.maxFileSize,
-      indexing_threads: finalConfig.indexingThreads,
-      enable_semantic: finalConfig.enableSemantic,
-      languages: finalConfig.languages,
-    }));
-    
+    const finalConfig = config ?? this.getConfigFromEnv();
+
+    await this.bridge.initialize(
+      JSON.stringify({
+        workspace_roots: finalConfig.workspaceRoots,
+        cache_dir: finalConfig.cacheDir,
+        max_file_size: finalConfig.maxFileSize,
+        indexing_threads: finalConfig.indexingThreads,
+        enable_semantic: finalConfig.enableSemantic,
+        languages: finalConfig.languages,
+      })
+    );
+
     await this.bridge.start();
     this.initialized = true;
   }
@@ -354,15 +352,21 @@ class RuneMcpServer {
     const workspaceRoots = process.env.RUNE_WORKSPACE
       ? [process.env.RUNE_WORKSPACE]
       : [process.cwd()];
-    
+
     return {
       workspaceRoots,
-      cacheDir: process.env.RUNE_CACHE_DIR || '.rune_cache',
-      maxFileSize: parseInt(process.env.RUNE_MAX_FILE_SIZE || '10485760'),
-      indexingThreads: parseInt(process.env.RUNE_INDEXING_THREADS || '4'),
+      cacheDir: process.env.RUNE_CACHE_DIR ?? '.rune_cache',
+      maxFileSize: parseInt(process.env.RUNE_MAX_FILE_SIZE ?? '10485760'),
+      indexingThreads: parseInt(process.env.RUNE_INDEXING_THREADS ?? '4'),
       enableSemantic: process.env.RUNE_ENABLE_SEMANTIC !== 'false',
-      languages: process.env.RUNE_LANGUAGES?.split(',') || [
-        'rust', 'javascript', 'typescript', 'python', 'go', 'java', 'cpp'
+      languages: process.env.RUNE_LANGUAGES?.split(',') ?? [
+        'rust',
+        'javascript',
+        'typescript',
+        'python',
+        'go',
+        'java',
+        'cpp',
       ],
     };
   }
@@ -370,7 +374,7 @@ class RuneMcpServer {
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    
+
     // Log to stderr (stdout is reserved for MCP communication)
     console.error('Rune MCP server started');
   }

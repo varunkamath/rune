@@ -1,8 +1,8 @@
+pub mod hybrid;
 pub mod literal;
 pub mod regex;
 pub mod semantic;
 pub mod symbol;
-pub mod hybrid;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -86,19 +86,21 @@ pub struct SearchEngine {
 
 impl SearchEngine {
     pub async fn new(config: Arc<Config>, storage: StorageBackend) -> Result<Self> {
-        let literal_searcher = literal::LiteralSearcher::new(config.clone(), storage.clone()).await?;
+        let literal_searcher =
+            literal::LiteralSearcher::new(config.clone(), storage.clone()).await?;
         let regex_searcher = regex::RegexSearcher::new(config.clone())?;
         let symbol_searcher = symbol::SymbolSearcher::new(config.clone(), storage.clone()).await?;
-        
+
         #[cfg(feature = "embeddings")]
-        let semantic_searcher = semantic::SemanticSearcher::new(config.clone(), storage.clone()).await?;
-        
+        let semantic_searcher =
+            semantic::SemanticSearcher::new(config.clone(), storage.clone()).await?;
+
         let hybrid_searcher = hybrid::HybridSearcher::new(
             literal_searcher.clone(),
             #[cfg(feature = "embeddings")]
             semantic_searcher.clone(),
         );
-        
+
         Ok(Self {
             config,
             storage,
@@ -110,10 +112,10 @@ impl SearchEngine {
             hybrid_searcher,
         })
     }
-    
+
     pub async fn search(&self, query: SearchQuery) -> Result<SearchResponse> {
         let start = std::time::Instant::now();
-        
+
         let results = match query.mode {
             SearchMode::Literal => self.literal_searcher.search(&query).await?,
             SearchMode::Regex => self.regex_searcher.search(&query).await?,
@@ -127,14 +129,14 @@ impl SearchEngine {
             },
             SearchMode::Hybrid => self.hybrid_searcher.search(&query).await?,
         };
-        
+
         let total_matches = results.len();
         let results = results
             .into_iter()
             .skip(query.offset)
             .take(query.limit)
             .collect();
-        
+
         Ok(SearchResponse {
             query,
             results,
@@ -142,7 +144,7 @@ impl SearchEngine {
             search_time_ms: start.elapsed().as_millis() as u64,
         })
     }
-    
+
     pub async fn reindex(&self) -> Result<()> {
         // Trigger reindexing
         Ok(())

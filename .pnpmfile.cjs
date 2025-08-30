@@ -7,6 +7,6 @@ module.exports = {
         pkg.trustedDependencies = ['esbuild', 'unrs-resolver'];
       }
       return pkg;
-    }
-  }
+    },
+  },
 };

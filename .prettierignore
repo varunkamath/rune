@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Build outputs
+dist/
+build/
+target/
+*.node
+
+# Rust
+Cargo.lock
+**/*.rs
+
+# Cache and temporary files
+.cache/
+.rune_cache/
+.rune_index/
+tmp/
+temp/
+coverage/
+
+# IDE
+.vscode/
+.idea/
+
+# Models and data
+models/
+*.onnx
+*.bin
+*.safetensors
+*.gguf
+qdrant_storage/
+
+# Documentation that shouldn't be formatted
+CLAUDE.md
+MCP_IMPLEMENTATION_RESEARCH.md
+
+# Generated files
+*.d.ts
+*.d.ts.map
+*.js.map
+
+# Config files that have their own formatting
+.eslintrc.json
+tsconfig.json
+Cargo.toml
