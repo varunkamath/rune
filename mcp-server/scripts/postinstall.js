@@ -30,7 +30,7 @@ function getPlatformKey() {
 function findPrebuiltBinary() {
   const platformKey = getPlatformKey();
   const mappedPlatform = PLATFORM_MAP[platformKey];
-  
+
   if (!mappedPlatform) {
     console.warn(`Warning: No prebuilt binary for platform ${platformKey}`);
     return null;
@@ -38,13 +38,13 @@ function findPrebuiltBinary() {
 
   // Try to find platform-specific binary from optionalDependencies
   const platformPackage = `@rune/mcp-server-${mappedPlatform}`;
-  
+
   try {
     // Try to resolve the platform-specific package
     const platformPackagePath = require.resolve(`${platformPackage}/package.json`);
     const platformDir = dirname(platformPackagePath);
     const binaryPath = join(platformDir, BINARY_NAME);
-    
+
     if (existsSync(binaryPath)) {
       return binaryPath;
     }
@@ -68,7 +68,7 @@ function copyBinary(source, destination) {
 
 function main() {
   const targetPath = join(ROOT_DIR, BINARY_NAME);
-  
+
   // Check if binary already exists (e.g., from local build)
   if (existsSync(targetPath)) {
     console.log(`✅ Native module already exists at ${targetPath}`);
@@ -77,7 +77,7 @@ function main() {
 
   // Try to find and copy prebuilt binary
   const prebuiltPath = findPrebuiltBinary();
-  
+
   if (prebuiltPath) {
     if (copyBinary(prebuiltPath, targetPath)) {
       return;
@@ -96,9 +96,11 @@ function main() {
   console.log(`Platform: ${getPlatformKey()}`);
   console.log('═══════════════════════════════════════════════════════════');
   console.log('');
-  
+
   // Don't fail the install - the mock bridge will be used
-  console.log('The MCP server will run with a mock implementation until the native module is built.');
+  console.log(
+    'The MCP server will run with a mock implementation until the native module is built.'
+  );
 }
 
 // Only run if executed directly (not imported)
