@@ -1,0 +1,182 @@
+# Dependencies
+node_modules/
+target/
+dist/
+build/
+*.node
+
+# Environment & Config
+.env
+.env.local
+.env.*.local
+*.local.json
+claude_desktop_config.json
+config.local.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Logs & Debug
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+pnpm-lock.yaml
+yarn.lock
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+.coverage
+*.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+.jest/
+
+# Rust
+Cargo.lock
+**/*.rs.bk
+*.pdb
+debug/
+release/
+
+# NAPI-RS
+*.node
+*.node.d.ts
+index.js
+index.d.ts
+
+# Database & Cache
+qdrant_storage/
+.qdrant/
+cache/
+.cache/
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+rocksdb/
+leveldb/
+tantivy_index/
+
+# LLM
+MCP_IMPLEMENTATION_RESEARCH.md
+CLAUDE.md
+
+# Embeddings & Models
+models/
+*.onnx
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.gguf
+*.ggml
+embeddings_cache/
+vector_cache/
+
+# OS Files
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Temporary
+tmp/
+temp/
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Build artifacts
+*.tsbuildinfo
+*.napi.node
+.turbo/
+.next/
+out/
+
+# Python (for embedding scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+*.save
+
+# Archives
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# Workspace-specific
+workspace_index/
+.rune_cache/
+.rune_index/
+search_cache/
+
+# Documentation build
+docs/_build/
+docs/.build/
+site/
+
+# Package manager specific
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions

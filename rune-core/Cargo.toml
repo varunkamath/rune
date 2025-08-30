@@ -1,0 +1,90 @@
+[package]
+name = "rune-core"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+# Async runtime
+tokio = { workspace = true }
+async-trait = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+bincode = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Search & Indexing
+tantivy = { workspace = true }
+regex = { workspace = true }
+
+# AST Parsing
+tree-sitter = { workspace = true }
+tree-sitter-rust = { workspace = true }
+tree-sitter-javascript = { workspace = true }
+tree-sitter-typescript = { workspace = true }
+tree-sitter-python = { workspace = true }
+tree-sitter-go = { workspace = true }
+tree-sitter-java = { workspace = true }
+tree-sitter-cpp = { workspace = true }
+
+# Vector operations
+ndarray = { workspace = true }
+
+# Storage
+rocksdb = { workspace = true }
+
+# File watching
+notify = { workspace = true }
+notify-debouncer-full = { workspace = true }
+
+# Git integration
+git2 = { workspace = true }
+
+# Utils
+dashmap = { workspace = true }
+parking_lot = { workspace = true }
+rayon = { workspace = true }
+once_cell = { workspace = true }
+indexmap = { workspace = true }
+
+# Additional dependencies for rune-core
+walkdir = "2.5"
+ignore = "0.4"  # gitignore-aware file traversal
+blake3 = "1.5"  # fast hashing
+lru = "0.12"
+bytes = "1.7"
+futures = "0.3"
+crossbeam-channel = "0.5"
+num_cpus = "1.16"
+
+# HTTP client for model downloads
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# Embedding support (we'll use candle for local inference)
+candle-core = { version = "0.8", optional = true }
+candle-nn = { version = "0.8", optional = true }
+candle-transformers = { version = "0.8", optional = true }
+tokenizers = { version = "0.21", default-features = false, features = ["onig"], optional = true }
+
+[dev-dependencies]
+mockall = { workspace = true }
+proptest = { workspace = true }
+criterion = { workspace = true }
+tempfile = "3.10"
+pretty_assertions = "1.4"
+
+[features]
+default = ["embeddings"]
+embeddings = ["candle-core", "candle-nn", "candle-transformers", "tokenizers"]
+
