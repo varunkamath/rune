@@ -158,6 +158,10 @@ mod tests {
         };
 
         let engine = RuneEngine::new(config).await;
+        // Print error if creation failed
+        if let Err(ref e) = engine {
+            eprintln!("Engine creation failed: {}", e);
+        }
         assert!(engine.is_ok());
     }
 }

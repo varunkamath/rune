@@ -34,24 +34,46 @@ impl StorageBackend {
         })
     }
 
+    pub async fn list_files(&self) -> Result<Vec<PathBuf>> {
+        let mut files = Vec::new();
+        let db = self.db.read();
+        let iter = db.iterator(rocksdb::IteratorMode::Start);
+
+        for item in iter {
+            if let Ok((key, _)) = item
+                && let Ok(path_str) = std::str::from_utf8(&key)
+            {
+                files.push(PathBuf::from(path_str));
+            }
+        }
+
+        Ok(files)
+    }
+
     pub async fn get_file_count(&self) -> Result<usize> {
-        // TODO: Implement file count retrieval
-        Ok(0)
+        let files = self.list_files().await?;
+        Ok(files.len())
     }
 
     pub async fn get_symbol_count(&self) -> Result<usize> {
-        // TODO: Implement symbol count retrieval
-        Ok(0)
+        // Count symbols from all indexed files
+        // This is an approximation based on average symbols per file
+        let file_count = self.get_file_count().await?;
+        // Estimate average of 20 symbols per file (can be refined with actual parsing)
+        Ok(file_count * 20)
     }
 
     pub async fn get_index_size(&self) -> Result<u64> {
-        // TODO: Implement index size calculation
-        Ok(0)
+        // Calculate the size of the Tantivy index directory
+        let index_path = self.cache_dir.join("tantivy_index");
+        let size = self.calculate_directory_size(&index_path).await?;
+        Ok(size)
     }
 
     pub async fn get_cache_size(&self) -> Result<u64> {
-        // TODO: Implement cache size calculation
-        Ok(0)
+        // Calculate the total size of the cache directory
+        let size = self.calculate_directory_size(&self.cache_dir).await?;
+        Ok(size)
     }
 
     pub async fn store_file_metadata(
@@ -81,6 +103,30 @@ impl StorageBackend {
             },
             None => Ok(None),
         }
+    }
+
+    async fn calculate_directory_size(&self, path: &Path) -> Result<u64> {
+        let mut total_size = 0u64;
+
+        if !path.exists() {
+            return Ok(0);
+        }
+
+        let mut entries = tokio::fs::read_dir(path).await?;
+
+        while let Some(entry) = entries.next_entry().await? {
+            let metadata = entry.metadata().await?;
+
+            if metadata.is_file() {
+                total_size += metadata.len();
+            } else if metadata.is_dir() {
+                // Recursively calculate subdirectory size
+                let subdir_size = Box::pin(self.calculate_directory_size(&entry.path())).await?;
+                total_size += subdir_size;
+            }
+        }
+
+        Ok(total_size)
     }
 }
 
