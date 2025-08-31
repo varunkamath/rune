@@ -71,7 +71,10 @@ num_cpus = "1.16"
 # HTTP client for model downloads
 reqwest = { version = "0.12", features = ["json", "stream"] }
 
-# Embedding support (we'll use candle for local inference)
+# Vector database
+qdrant-client = { version = "1.12", optional = true }
+
+# Embedding support (legacy - kept for compatibility)
 candle-core = { version = "0.9", optional = true }
 candle-nn = { version = "0.9", optional = true }
 candle-transformers = { version = "0.9", optional = true }
@@ -85,5 +88,6 @@ tempfile = "3.10"
 pretty_assertions = "1.4"
 
 [features]
-default = ["embeddings"]
+default = ["semantic"]
+semantic = ["qdrant-client", "embeddings"]
 embeddings = ["candle-core", "candle-nn", "candle-transformers", "tokenizers"]

@@ -5,7 +5,7 @@ pub mod indexing;
 pub mod search;
 pub mod storage;
 
-#[cfg(feature = "embeddings")]
+#[cfg(feature = "semantic")]
 pub mod embedding;
 
 use std::path::PathBuf;
@@ -21,6 +21,9 @@ pub use error::RuneError;
 pub struct Config {
     /// Workspace root directories
     pub workspace_roots: Vec<PathBuf>,
+
+    /// Main workspace directory (first workspace root)
+    pub workspace_dir: String,
 
     /// Cache directory for indexes and embeddings
     pub cache_dir: PathBuf,
@@ -40,8 +43,11 @@ pub struct Config {
 
 impl Default for Config {
     fn default() -> Self {
+        let workspace_roots = vec![PathBuf::from(".")];
+        let workspace_dir = workspace_roots[0].to_string_lossy().to_string();
         Self {
-            workspace_roots: vec![],
+            workspace_roots,
+            workspace_dir,
             cache_dir: PathBuf::from(".rune_cache"),
             max_file_size: 10 * 1024 * 1024, // 10MB
             indexing_threads: num_cpus::get(),

@@ -14,8 +14,6 @@ services:
       - QDRANT__SERVICE__HOST=0.0.0.0
       - QDRANT__STORAGE__STORAGE_PATH=/qdrant/storage
       - QDRANT__STORAGE__ON_DISK_PAYLOAD=true
-      - QDRANT__STORAGE__OPTIMIZERS__MEMMAP_THRESHOLD=100000
-      - QDRANT__STORAGE__OPTIMIZERS__INDEXING_THRESHOLD=20000
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6333/health"]

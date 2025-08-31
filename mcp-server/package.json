@@ -23,7 +23,7 @@
     "semantic-search",
     "ast"
   ],
-  "author": "Rune Contributors",
+  "author": "Varun Kamath ",
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.4",

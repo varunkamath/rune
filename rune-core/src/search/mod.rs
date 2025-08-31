@@ -80,7 +80,7 @@ pub struct SearchEngine {
     literal_searcher: literal::LiteralSearcher,
     regex_searcher: regex::RegexSearcher,
     symbol_searcher: symbol::SymbolSearcher,
-    #[cfg(feature = "embeddings")]
+    #[cfg(feature = "semantic")]
     semantic_searcher: semantic::SemanticSearcher,
     hybrid_searcher: hybrid::HybridSearcher,
 }
@@ -101,14 +101,14 @@ impl SearchEngine {
             symbol::SymbolSearcher::new(config.clone(), storage.clone(), tantivy_indexer.clone())
                 .await?;
 
-        #[cfg(feature = "embeddings")]
+        #[cfg(feature = "semantic")]
         let semantic_searcher =
             semantic::SemanticSearcher::new(config.clone(), storage.clone()).await?;
 
         let hybrid_searcher = hybrid::HybridSearcher::new(
             literal_searcher.clone(),
             symbol_searcher.clone(),
-            #[cfg(feature = "embeddings")]
+            #[cfg(feature = "semantic")]
             semantic_searcher.clone(),
         );
 
@@ -119,7 +119,7 @@ impl SearchEngine {
             literal_searcher,
             regex_searcher,
             symbol_searcher,
-            #[cfg(feature = "embeddings")]
+            #[cfg(feature = "semantic")]
             semantic_searcher,
             hybrid_searcher,
         })
@@ -132,9 +132,9 @@ impl SearchEngine {
             SearchMode::Literal => self.literal_searcher.search(&query).await?,
             SearchMode::Regex => self.regex_searcher.search(&query).await?,
             SearchMode::Symbol => self.symbol_searcher.search(&query).await?,
-            #[cfg(feature = "embeddings")]
+            #[cfg(feature = "semantic")]
             SearchMode::Semantic => self.semantic_searcher.search(&query).await?,
-            #[cfg(not(feature = "embeddings"))]
+            #[cfg(not(feature = "semantic"))]
             SearchMode::Semantic => {
                 tracing::warn!("Semantic search requested but embeddings feature is disabled");
                 vec![]

@@ -7,13 +7,13 @@ use super::literal::LiteralSearcher;
 use super::symbol::SymbolSearcher;
 use super::{SearchQuery, SearchResult};
 
-#[cfg(feature = "embeddings")]
+#[cfg(feature = "semantic")]
 use super::semantic::SemanticSearcher;
 
 pub struct HybridSearcher {
     literal_searcher: LiteralSearcher,
     symbol_searcher: SymbolSearcher,
-    #[cfg(feature = "embeddings")]
+    #[cfg(feature = "semantic")]
     semantic_searcher: SemanticSearcher,
 }
 
@@ -21,12 +21,12 @@ impl HybridSearcher {
     pub fn new(
         literal_searcher: LiteralSearcher,
         symbol_searcher: SymbolSearcher,
-        #[cfg(feature = "embeddings")] semantic_searcher: SemanticSearcher,
+        #[cfg(feature = "semantic")] semantic_searcher: SemanticSearcher,
     ) -> Self {
         Self {
             literal_searcher,
             symbol_searcher,
-            #[cfg(feature = "embeddings")]
+            #[cfg(feature = "semantic")]
             semantic_searcher,
         }
     }
@@ -38,7 +38,7 @@ impl HybridSearcher {
         let literal_results = self.literal_searcher.search(query).await?;
         let symbol_results = self.symbol_searcher.search(query).await?;
 
-        #[cfg(feature = "embeddings")]
+        #[cfg(feature = "semantic")]
         let semantic_results = self.semantic_searcher.search(query).await?;
 
         // Implement Reciprocal Rank Fusion (RRF)
@@ -72,7 +72,7 @@ impl HybridSearcher {
         }
 
         // Process semantic results if available
-        #[cfg(feature = "embeddings")]
+        #[cfg(feature = "semantic")]
         for (rank, result) in semantic_results.into_iter().enumerate() {
             let key = (result.file_path.clone(), result.line_number);
             let rrf_score = 1.0 / (k + rank as f32 + 1.0);

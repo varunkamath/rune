@@ -29,12 +29,18 @@ impl RuneBridge {
         let config: ConfigJs = serde_json::from_str(&config_json)
             .map_err(|e| Error::from_reason(format!("Invalid config: {}", e)))?;
 
+        let workspace_roots: Vec<PathBuf> = config
+            .workspace_roots
+            .into_iter()
+            .map(PathBuf::from)
+            .collect();
+
         let rust_config = Config {
-            workspace_roots: config
-                .workspace_roots
-                .into_iter()
-                .map(PathBuf::from)
-                .collect(),
+            workspace_dir: workspace_roots
+                .first()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| ".".to_string()),
+            workspace_roots,
             cache_dir: PathBuf::from(config.cache_dir),
             max_file_size: config.max_file_size,
             indexing_threads: config.indexing_threads,
