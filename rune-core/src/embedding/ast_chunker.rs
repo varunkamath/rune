@@ -626,12 +626,22 @@ fn helper_function(x: i32) -> i32 {
 }
 "#;
 
-        let mut chunker = AstChunker::new(AstChunkerConfig::default());
+        // Use smaller chunk size for testing to ensure multiple chunks
+        let config = AstChunkerConfig {
+            target_size: 150, // Small enough to split the test code
+            max_size: 300,
+            ..Default::default()
+        };
+        let mut chunker = AstChunker::new(config);
         let chunks = chunker.chunk_file(code, "test.rs", Language::Rust).unwrap();
 
         assert!(!chunks.is_empty());
         // Should have separate chunks for struct, impl block, and standalone function
-        assert!(chunks.len() >= 2);
+        assert!(
+            chunks.len() >= 2,
+            "Expected at least 2 chunks, got {}",
+            chunks.len()
+        );
     }
 
     #[test]
@@ -652,14 +662,24 @@ def standalone_function(x: int) -> int:
     return x * 2
 "#;
 
-        let mut chunker = AstChunker::new(AstChunkerConfig::default());
+        // Use smaller chunk size for testing to ensure multiple chunks
+        let config = AstChunkerConfig {
+            target_size: 150, // Small enough to split the test code
+            max_size: 300,
+            ..Default::default()
+        };
+        let mut chunker = AstChunker::new(config);
         let chunks = chunker
             .chunk_file(code, "test.py", Language::Python)
             .unwrap();
 
         assert!(!chunks.is_empty());
         // Should separate class and standalone function
-        assert!(chunks.len() >= 2);
+        assert!(
+            chunks.len() >= 2,
+            "Expected at least 2 chunks, got {}",
+            chunks.len()
+        );
     }
 
     #[test]

@@ -455,6 +455,39 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Run with --ignored to test actual model download
+    async fn test_real_model_download() {
+        use std::path::PathBuf;
+        use tracing_subscriber;
+        let _ = tracing_subscriber::fmt::try_init();
+
+        let config = Arc::new(Config {
+            workspace_dir: ".".to_string(),
+            cache_dir: PathBuf::from(".rune_cache"),
+            ..Default::default()
+        });
+
+        println!("Attempting to download and initialize real model...");
+        let generator = EmbeddingGenerator::new(config).await.unwrap();
+
+        assert!(
+            !generator.fallback_mode,
+            "Should not be in fallback mode with real model"
+        );
+        assert_eq!(
+            generator.dimension, 384,
+            "Should have 384 dimensions for all-MiniLM-L6-v2"
+        );
+
+        // Test with real embeddings
+        let text = "function test() { return 42; }";
+        let embedding = generator.generate_embedding(text).await.unwrap();
+        assert_eq!(embedding.len(), 384, "Embedding should have 384 dimensions");
+
+        println!("Successfully generated 384-dimensional embedding!");
+    }
+
+    #[tokio::test]
     async fn test_semantic_similarity() {
         let temp_dir = TempDir::new().unwrap();
         let config = Arc::new(Config {
