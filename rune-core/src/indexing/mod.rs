@@ -15,10 +15,15 @@ use self::file_walker::{FileEvent, FileWalker};
 use self::tantivy_indexer::TantivyIndexer;
 use crate::{Config, storage::StorageBackend};
 
+#[cfg(feature = "semantic")]
+use crate::search::semantic::SemanticSearcher;
+
 pub struct Indexer {
     config: Arc<Config>,
     storage: StorageBackend,
     tantivy_indexer: Arc<TantivyIndexer>,
+    #[cfg(feature = "semantic")]
+    semantic_searcher: Option<SemanticSearcher>,
     file_walker: FileWalker,
     watcher_handles: Vec<tokio::task::JoinHandle<()>>,
     shutdown_tx: Option<mpsc::Sender<()>>,
@@ -30,10 +35,25 @@ impl Indexer {
         let tantivy_indexer = Arc::new(TantivyIndexer::new(&index_path).await?);
         let file_walker = FileWalker::new(config.clone());
 
+        #[cfg(feature = "semantic")]
+        let semantic_searcher = if config.enable_semantic {
+            match SemanticSearcher::new(config.clone(), storage.clone()).await {
+                Ok(searcher) => Some(searcher),
+                Err(e) => {
+                    warn!("Failed to initialize semantic searcher: {}", e);
+                    None
+                },
+            }
+        } else {
+            None
+        };
+
         Ok(Self {
             config,
             storage,
             tantivy_indexer,
+            #[cfg(feature = "semantic")]
+            semantic_searcher,
             file_walker,
             watcher_handles: Vec::new(),
             shutdown_tx: None,
@@ -73,6 +93,8 @@ impl Indexer {
         // Start event processor
         let tantivy_indexer = self.tantivy_indexer.clone();
         let storage = self.storage.clone();
+        #[cfg(feature = "semantic")]
+        let semantic_searcher = self.semantic_searcher.clone();
         let mut shutdown_rx = shutdown_rx;
 
         let processor_handle = tokio::spawn(async move {
@@ -83,6 +105,8 @@ impl Indexer {
                             event,
                             &tantivy_indexer,
                             &storage,
+                            #[cfg(feature = "semantic")]
+                            semantic_searcher.as_ref(),
                         ).await {
                             error!("Failed to process file event: {}", e);
                         }
@@ -180,6 +204,20 @@ impl Indexer {
                         error!("Failed to index file {:?}: {}", file_path, e);
                     }
 
+                    // Index for semantic search if enabled
+                    #[cfg(feature = "semantic")]
+                    if let Some(ref semantic_searcher) = self.semantic_searcher {
+                        if let Err(e) = semantic_searcher
+                            .index_file(&file_path.to_string_lossy(), &content)
+                            .await
+                        {
+                            error!(
+                                "Failed to index file for semantic search {:?}: {}",
+                                file_path, e
+                            );
+                        }
+                    }
+
                     // Store metadata
                     let metadata = crate::storage::FileMetadata {
                         path: file_path.clone(),
@@ -225,6 +263,7 @@ impl Indexer {
         event: FileEvent,
         tantivy_indexer: &TantivyIndexer,
         storage: &StorageBackend,
+        #[cfg(feature = "semantic")] semantic_searcher: Option<&SemanticSearcher>,
     ) -> Result<()> {
         match event {
             FileEvent::Created(path) | FileEvent::Modified(path) => {
@@ -242,6 +281,14 @@ impl Indexer {
                 tantivy_indexer
                     .index_file(&path, repository, &content)
                     .await?;
+
+                // Index for semantic search if enabled
+                #[cfg(feature = "semantic")]
+                if let Some(searcher) = semantic_searcher {
+                    if let Err(e) = searcher.index_file(&path.to_string_lossy(), &content).await {
+                        error!("Failed to index file for semantic search {:?}: {}", path, e);
+                    }
+                }
 
                 // Store metadata
                 let metadata = crate::storage::FileMetadata {

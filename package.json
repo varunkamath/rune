@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "build": "pnpm run build:rust && pnpm run build:bridge && pnpm run build:ts",
-    "build:rust": "cargo build --release",
+    "build:rust": "cargo build --all-features --release",
     "build:bridge": "cd mcp-server && pnpm run build:bridge",
     "build:ts": "cd mcp-server && pnpm run build:ts",
     "dev": "pnpm run build:rust && cd mcp-server && pnpm run dev",
