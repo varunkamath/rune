@@ -168,16 +168,16 @@ class RuneMcpServer {
             const args = SearchQuerySchema.parse(request.params.arguments);
             await this.ensureInitialized();
 
-            const results = await this.bridge.search(
-              JSON.stringify({
-                query: args.query,
-                mode: args.mode,
-                repositories: args.repositories,
-                file_patterns: args.filePatterns,
-                limit: args.limit,
-                offset: args.offset,
-              })
-            );
+            const searchQuery = {
+              query: args.query,
+              mode: args.mode,
+              repositories: args.repositories?.length ? args.repositories : undefined,
+              file_patterns: args.filePatterns?.length ? args.filePatterns : undefined,
+              limit: args.limit || 50,
+              offset: args.offset || 0,
+            };
+            
+            const results = await this.bridge.search(JSON.stringify(searchQuery));
 
             return {
               content: [{ type: 'text', text: results }],
@@ -333,19 +333,29 @@ class RuneMcpServer {
   private async initializeEngine(config?: z.infer<typeof ConfigSchema>) {
     const finalConfig = config ?? this.getConfigFromEnv();
 
-    await this.bridge.initialize(
-      JSON.stringify({
-        workspace_roots: finalConfig.workspaceRoots,
-        cache_dir: finalConfig.cacheDir,
-        max_file_size: finalConfig.maxFileSize,
-        indexing_threads: finalConfig.indexingThreads,
-        enable_semantic: finalConfig.enableSemantic,
-        languages: finalConfig.languages,
-      })
-    );
+    try {
+      await this.bridge.initialize(
+        JSON.stringify({
+          workspace_roots: finalConfig.workspaceRoots,
+          cache_dir: finalConfig.cacheDir,
+          max_file_size: finalConfig.maxFileSize,
+          indexing_threads: finalConfig.indexingThreads,
+          enable_semantic: finalConfig.enableSemantic,
+          languages: finalConfig.languages,
+        })
+      );
 
-    await this.bridge.start();
-    this.initialized = true;
+      await this.bridge.start();
+      this.initialized = true;
+    } catch (error) {
+      // Log to stderr for debugging
+      console.error('Failed to initialize engine:', error);
+      // Re-throw with a clean error message
+      throw new McpError(
+        ErrorCode.InternalError,
+        `Engine initialization failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
 
   private getConfigFromEnv(): z.infer<typeof ConfigSchema> {
@@ -379,6 +389,18 @@ class RuneMcpServer {
     console.error('Rune MCP server started');
   }
 }
+
+// Debug stdout writes to find pollution source
+const originalStdoutWrite = process.stdout.write;
+process.stdout.write = function(chunk: any, ...args: any[]): boolean {
+  // Log any non-JSON writes to stderr for debugging
+  const str = chunk?.toString() || '';
+  if (str && !str.startsWith('{') && !str.startsWith('[')) {
+    console.error('DEBUG: Non-JSON stdout write detected:', JSON.stringify(str.substring(0, 100)));
+    console.error('DEBUG: Stack trace:', new Error().stack);
+  }
+  return originalStdoutWrite.call(process.stdout, chunk, ...args);
+} as any;
 
 // Main entry point
 const server = new RuneMcpServer();

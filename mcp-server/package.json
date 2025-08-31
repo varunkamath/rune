@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "pnpm run build:bridge && pnpm run build:ts",
-    "build:bridge": "cargo build --release --manifest-path ../rune-bridge/Cargo.toml && cp ../target/release/librune_bridge.dylib rune.node 2>/dev/null || cp ../target/release/librune_bridge.so rune.node 2>/dev/null || cp ../target/release/rune_bridge.dll rune.node 2>/dev/null",
+    "build:bridge": "cargo build --all-features --release --manifest-path ../rune-bridge/Cargo.toml && cp ../target/release/librune_bridge.dylib rune.node 2>/dev/null || cp ../target/release/librune_bridge.so rune.node 2>/dev/null || cp ../target/release/rune_bridge.dll rune.node 2>/dev/null",
     "build:ts": "tsc",
     "dev": "pnpm run build:bridge && node --enable-source-maps dist/index.js",
     "dev:ts": "tsx src/index.ts",

@@ -29,6 +29,10 @@ anyhow = { workspace = true }
 
 # Logging
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# System
+libc = "0.2"
 
 [build-dependencies]
 napi-build = "2"

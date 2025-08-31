@@ -9,6 +9,46 @@ use rune_core::{
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use std::os::unix::io::{AsRawFd, FromRawFd};
+
+// Helper to suppress stdout during Qdrant operations
+struct StdoutSuppressor {
+    saved_stdout: Option<std::fs::File>,
+}
+
+impl StdoutSuppressor {
+    fn new() -> Self {
+        unsafe {
+            // Save current stdout
+            let saved = libc::dup(1);
+            if saved != -1 {
+                // Redirect stdout to /dev/null
+                let devnull = std::fs::OpenOptions::new()
+                    .write(true)
+                    .open("/dev/null")
+                    .ok();
+                if let Some(null) = devnull {
+                    libc::dup2(null.as_raw_fd(), 1);
+                    return StdoutSuppressor {
+                        saved_stdout: Some(std::fs::File::from_raw_fd(saved)),
+                    };
+                }
+            }
+        }
+        StdoutSuppressor { saved_stdout: None }
+    }
+}
+
+impl Drop for StdoutSuppressor {
+    fn drop(&mut self) {
+        if let Some(saved) = self.saved_stdout.take() {
+            unsafe {
+                // Restore stdout
+                libc::dup2(saved.as_raw_fd(), 1);
+            }
+        }
+    }
+}
 
 #[napi]
 pub struct RuneBridge {
@@ -19,6 +59,34 @@ pub struct RuneBridge {
 impl RuneBridge {
     #[napi(constructor)]
     pub fn new() -> Result<Self> {
+        // Suppress all logging to prevent stdout pollution
+        // The Qdrant client library prints directly to stdout, breaking JSON-RPC
+        static INIT: std::sync::Once = std::sync::Once::new();
+        INIT.call_once(|| {
+            // Set environment to suppress Qdrant client output
+            unsafe {
+                std::env::set_var("RUST_LOG", "off");
+            }
+            
+            // Initialize a null subscriber that drops all tracing events
+            struct NullSubscriber;
+            impl tracing::Subscriber for NullSubscriber {
+                fn enabled(&self, _metadata: &tracing::Metadata<'_>) -> bool {
+                    false
+                }
+                fn new_span(&self, _span: &tracing::span::Attributes<'_>) -> tracing::span::Id {
+                    tracing::span::Id::from_u64(1)
+                }
+                fn record(&self, _span: &tracing::span::Id, _values: &tracing::span::Record<'_>) {}
+                fn record_follows_from(&self, _span: &tracing::span::Id, _follows: &tracing::span::Id) {}
+                fn event(&self, _event: &tracing::Event<'_>) {}
+                fn enter(&self, _span: &tracing::span::Id) {}
+                fn exit(&self, _span: &tracing::span::Id) {}
+            }
+            
+            let _ = tracing::subscriber::set_global_default(NullSubscriber);
+        });
+        
         Ok(Self {
             engine: Arc::new(RwLock::new(None)),
         })
@@ -26,6 +94,9 @@ impl RuneBridge {
 
     #[napi]
     pub async fn initialize(&self, config_json: String) -> Result<()> {
+        // Suppress stdout for Qdrant client warnings
+        let _guard = StdoutSuppressor::new();
+        
         let config: ConfigJs = serde_json::from_str(&config_json)
             .map_err(|e| Error::from_reason(format!("Invalid config: {}", e)))?;
 
@@ -60,6 +131,9 @@ impl RuneBridge {
 
     #[napi]
     pub async fn start(&self) -> Result<()> {
+        // Suppress stdout for Qdrant client warnings during start
+        let _guard = StdoutSuppressor::new();
+        
         let mut lock = self.engine.write().await;
         let engine = lock
             .as_mut()
@@ -69,6 +143,13 @@ impl RuneBridge {
             .start()
             .await
             .map_err(|e| Error::from_reason(format!("Failed to start engine: {}", e)))?;
+
+        // Trigger initial indexing
+        engine
+            .indexer()
+            .reindex()
+            .await
+            .map_err(|e| Error::from_reason(format!("Failed to reindex: {}", e)))?;
 
         Ok(())
     }
@@ -98,7 +179,7 @@ impl RuneBridge {
         let query: SearchQueryJs = serde_json::from_str(&query_json)
             .map_err(|e| Error::from_reason(format!("Invalid query: {}", e)))?;
 
-        let mode = match query.mode.as_str() {
+        let mode = match query.mode.to_lowercase().as_str() {
             "literal" => SearchMode::Literal,
             "regex" => SearchMode::Regex,
             "symbol" => SearchMode::Symbol,
@@ -113,10 +194,10 @@ impl RuneBridge {
         };
 
         let rust_query = SearchQuery {
-            query: query.query,
+            query: query.query.clone(),
             mode,
-            repositories: query.repositories,
-            file_patterns: query.file_patterns,
+            repositories: query.repositories.clone(),
+            file_patterns: query.file_patterns.clone(),
             limit: query.limit,
             offset: query.offset,
         };
@@ -126,9 +207,11 @@ impl RuneBridge {
             .search(rust_query)
             .await
             .map_err(|e| Error::from_reason(format!("Search failed: {}", e)))?;
-
-        serde_json::to_string(&response)
-            .map_err(|e| Error::from_reason(format!("Failed to serialize response: {}", e)))
+        
+        let json_response = serde_json::to_string(&response)
+            .map_err(|e| Error::from_reason(format!("Failed to serialize response: {}", e)))?;
+        
+        Ok(json_response)
     }
 
     #[napi]
@@ -181,7 +264,7 @@ struct ConfigJs {
     languages: Vec<String>,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug)]
 struct SearchQueryJs {
     query: String,
     mode: String,

@@ -467,7 +467,7 @@ mod tests {
             ..Default::default()
         });
 
-        println!("Attempting to download and initialize real model...");
+        eprintln!("Attempting to download and initialize real model...");
         let generator = EmbeddingGenerator::new(config).await.unwrap();
 
         assert!(
@@ -484,7 +484,7 @@ mod tests {
         let embedding = generator.generate_embedding(text).await.unwrap();
         assert_eq!(embedding.len(), 384, "Embedding should have 384 dimensions");
 
-        println!("Successfully generated 384-dimensional embedding!");
+        eprintln!("Successfully generated 384-dimensional embedding!");
     }
 
     #[tokio::test]

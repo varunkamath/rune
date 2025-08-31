@@ -81,6 +81,7 @@ cache/
 rocksdb/
 leveldb/
 tantivy_index/
+test_workspace/
 
 # LLM
 MCP_IMPLEMENTATION_RESEARCH.md
