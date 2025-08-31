@@ -63,12 +63,8 @@ impl EmbeddingPipeline {
             let embeddings = self.generator.batch_generate(&texts).await?;
 
             for (chunk, embedding) in batch.iter().zip(embeddings.iter()) {
-                let id = format!(
-                    "{}:{}:{}",
-                    blake3::hash(file_path.as_bytes()).to_hex(),
-                    chunk.start_line,
-                    chunk.end_line
-                );
+                // Generate a unique ID using UUID v4
+                let id = uuid::Uuid::new_v4().to_string();
 
                 embedded_chunks.push(EmbeddedChunk {
                     id,

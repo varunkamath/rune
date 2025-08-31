@@ -48,7 +48,7 @@ impl QdrantManager {
             }
 
             let qdrant_url =
-                std::env::var("QDRANT_URL").unwrap_or_else(|_| "http://localhost:6333".to_string());
+                std::env::var("QDRANT_URL").unwrap_or_else(|_| "http://localhost:6334".to_string());
 
             info!("Connecting to Qdrant at {}...", qdrant_url);
 
@@ -127,7 +127,7 @@ impl QdrantManager {
             client
                 .create_collection(
                     CreateCollectionBuilder::new(collection_name)
-                        .vectors_config(VectorParamsBuilder::new(256, Distance::Cosine)),
+                        .vectors_config(VectorParamsBuilder::new(384, Distance::Cosine)),
                 )
                 .await
                 .context("Failed to create collection")?;
@@ -150,6 +150,12 @@ impl QdrantManager {
                 }
 
                 debug!("Storing {} embeddings in Qdrant", chunks.len());
+                if let Some(first_chunk) = chunks.first() {
+                    debug!(
+                        "First embedding has {} dimensions",
+                        first_chunk.embedding.len()
+                    );
+                }
 
                 let points: Vec<PointStruct> = chunks
                     .into_iter()
@@ -207,10 +213,16 @@ impl QdrantManager {
                     })
                     .collect();
 
-                client
+                match client
                     .upsert_points(UpsertPointsBuilder::new(&self.collection_name, points))
                     .await
-                    .context("Failed to store embeddings")?;
+                {
+                    Ok(_) => {},
+                    Err(e) => {
+                        error!("Failed to upsert points to Qdrant: {:?}", e);
+                        return Err(anyhow::anyhow!("Failed to store embeddings: {}", e));
+                    },
+                }
 
                 debug!("Successfully stored embeddings");
                 Ok(())

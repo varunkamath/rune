@@ -6,10 +6,10 @@ use rune_core::{
     Config, RuneEngine,
     search::{SearchMode, SearchQuery},
 };
+use std::os::unix::io::{AsRawFd, FromRawFd};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use std::os::unix::io::{AsRawFd, FromRawFd};
 
 // Helper to suppress stdout during Qdrant operations
 struct StdoutSuppressor {
@@ -67,7 +67,7 @@ impl RuneBridge {
             unsafe {
                 std::env::set_var("RUST_LOG", "off");
             }
-            
+
             // Initialize a null subscriber that drops all tracing events
             struct NullSubscriber;
             impl tracing::Subscriber for NullSubscriber {
@@ -78,15 +78,20 @@ impl RuneBridge {
                     tracing::span::Id::from_u64(1)
                 }
                 fn record(&self, _span: &tracing::span::Id, _values: &tracing::span::Record<'_>) {}
-                fn record_follows_from(&self, _span: &tracing::span::Id, _follows: &tracing::span::Id) {}
+                fn record_follows_from(
+                    &self,
+                    _span: &tracing::span::Id,
+                    _follows: &tracing::span::Id,
+                ) {
+                }
                 fn event(&self, _event: &tracing::Event<'_>) {}
                 fn enter(&self, _span: &tracing::span::Id) {}
                 fn exit(&self, _span: &tracing::span::Id) {}
             }
-            
+
             let _ = tracing::subscriber::set_global_default(NullSubscriber);
         });
-        
+
         Ok(Self {
             engine: Arc::new(RwLock::new(None)),
         })
@@ -96,7 +101,7 @@ impl RuneBridge {
     pub async fn initialize(&self, config_json: String) -> Result<()> {
         // Suppress stdout for Qdrant client warnings
         let _guard = StdoutSuppressor::new();
-        
+
         let config: ConfigJs = serde_json::from_str(&config_json)
             .map_err(|e| Error::from_reason(format!("Invalid config: {}", e)))?;
 
@@ -133,7 +138,7 @@ impl RuneBridge {
     pub async fn start(&self) -> Result<()> {
         // Suppress stdout for Qdrant client warnings during start
         let _guard = StdoutSuppressor::new();
-        
+
         let mut lock = self.engine.write().await;
         let engine = lock
             .as_mut()
@@ -207,10 +212,10 @@ impl RuneBridge {
             .search(rust_query)
             .await
             .map_err(|e| Error::from_reason(format!("Search failed: {}", e)))?;
-        
+
         let json_response = serde_json::to_string(&response)
             .map_err(|e| Error::from_reason(format!("Failed to serialize response: {}", e)))?;
-        
+
         Ok(json_response)
     }
 

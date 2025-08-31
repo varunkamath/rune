@@ -1,13 +1,11 @@
-use std::path::PathBuf;
+use rune_core::search::{SearchMode, SearchQuery};
 use rune_core::{Config, RuneEngine};
-use rune_core::search::{SearchQuery, SearchMode};
+use std::path::PathBuf;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Initialize logging
-    tracing_subscriber::fmt()
-        .with_env_filter("debug")
-        .init();
+    tracing_subscriber::fmt().with_env_filter("debug").init();
 
     println!("Testing search directly...");
 
@@ -18,21 +16,26 @@ async fn main() -> anyhow::Result<()> {
         cache_dir: PathBuf::from("/Users/varun/Projects/rune/mcp-server/.rune_cache"),
         max_file_size: 10 * 1024 * 1024,
         indexing_threads: 4,
-        enable_semantic: false,
-        languages: vec!["python".to_string(), "javascript".to_string(), "rust".to_string(), "go".to_string()],
+        enable_semantic: true,
+        languages: vec![
+            "python".to_string(),
+            "javascript".to_string(),
+            "rust".to_string(),
+            "go".to_string(),
+        ],
     };
 
     // Create engine
     let engine = RuneEngine::new(config).await?;
-    
+
     // Reindex
     println!("Reindexing workspace...");
     engine.indexer().reindex().await?;
-    
+
     // Get stats
     let stats = engine.stats().await?;
     println!("Stats: {:?}", stats);
-    
+
     // Test literal search
     let query = SearchQuery {
         query: "def".to_string(),
@@ -42,14 +45,19 @@ async fn main() -> anyhow::Result<()> {
         limit: 10,
         offset: 0,
     };
-    
+
     println!("Searching for 'def' with literal mode...");
     let results = engine.search().search(query).await?;
-    
+
     println!("Found {} results", results.results.len());
     for result in &results.results {
-        println!("  - {}:{} - {}", result.file_path.display(), result.line_number, result.content);
+        println!(
+            "  - {}:{} - {}",
+            result.file_path.display(),
+            result.line_number,
+            result.content
+        );
     }
-    
+
     Ok(())
 }

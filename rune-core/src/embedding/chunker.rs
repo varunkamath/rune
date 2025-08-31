@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use tracing::{debug, warn};
 
 use super::ast_chunker::{AstChunker, AstChunkerConfig};

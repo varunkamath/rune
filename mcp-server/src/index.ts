@@ -176,7 +176,7 @@ class RuneMcpServer {
               limit: args.limit || 50,
               offset: args.offset || 0,
             };
-            
+
             const results = await this.bridge.search(JSON.stringify(searchQuery));
 
             return {
@@ -392,15 +392,15 @@ class RuneMcpServer {
 
 // Debug stdout writes to find pollution source
 const originalStdoutWrite = process.stdout.write;
-process.stdout.write = function(chunk: any, ...args: any[]): boolean {
+process.stdout.write = function (chunk: string | Uint8Array, ...args: unknown[]): boolean {
   // Log any non-JSON writes to stderr for debugging
-  const str = chunk?.toString() || '';
+  const str = chunk?.toString() ?? '';
   if (str && !str.startsWith('{') && !str.startsWith('[')) {
     console.error('DEBUG: Non-JSON stdout write detected:', JSON.stringify(str.substring(0, 100)));
     console.error('DEBUG: Stack trace:', new Error().stack);
   }
   return originalStdoutWrite.call(process.stdout, chunk, ...args);
-} as any;
+} as typeof process.stdout.write;
 
 // Main entry point
 const server = new RuneMcpServer();

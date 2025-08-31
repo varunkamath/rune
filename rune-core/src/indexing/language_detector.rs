@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Language {
@@ -120,8 +121,12 @@ impl Language {
             Language::Unknown => "unknown",
         }
     }
+}
 
-    pub fn from_str(s: &str) -> Result<Self, String> {
+impl FromStr for Language {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "rust" => Ok(Language::Rust),
             "javascript" => Ok(Language::JavaScript),
@@ -151,7 +156,9 @@ impl Language {
             _ => Err(format!("Unknown language: {}", s)),
         }
     }
+}
 
+impl Language {
     pub fn get_comment_syntax(&self) -> CommentSyntax {
         match self {
             Language::Rust

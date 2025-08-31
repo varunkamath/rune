@@ -48,7 +48,7 @@ function findPrebuiltBinary() {
     if (existsSync(binaryPath)) {
       return binaryPath;
     }
-  } catch (e) {
+  } catch (_e) {
     // Platform package not installed (expected for other platforms)
   }
 

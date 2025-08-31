@@ -20,9 +20,6 @@ export interface RuneBridgeConstructor {
   new (): RuneBridgeInstance;
 }
 
-// The actual bridge implementation will be loaded from the .node file
-let bridge: RuneBridgeConstructor;
-
 // Try to load the native module with various strategies
 const loadNativeModule = (): RuneBridgeConstructor => {
   const possiblePaths = [
@@ -118,6 +115,6 @@ const createMockBridge = (): RuneBridgeConstructor => {
 };
 
 // Load the bridge
-bridge = loadNativeModule();
+const bridgeModule = loadNativeModule();
 
-export const RuneBridge = bridge;
+export const RuneBridge = bridgeModule;
