@@ -109,11 +109,11 @@ impl AstChunker {
 
     /// Get or create a parser for the given language
     fn get_or_create_parser(&mut self, language: Language) -> Result<&mut Parser> {
-        if !self.parsers.contains_key(&language) {
+        if let std::collections::hash_map::Entry::Vacant(e) = self.parsers.entry(language) {
             let mut parser = Parser::new();
             let ts_language = get_tree_sitter_language(language)?;
             parser.set_language(&ts_language)?;
-            self.parsers.insert(language, parser);
+            e.insert(parser);
 
             // Initialize queries for this language
             self.initialize_queries(language, ts_language)?;
@@ -133,7 +133,7 @@ impl AstChunker {
                         name: (identifier) @function.name
                         parameters: (parameters) @function.params
                         body: (block) @function.body) @function
-                    
+
                     (impl_item
                         type: (_) @impl.type
                         body: (declaration_list
@@ -149,11 +149,11 @@ impl AstChunker {
                     (struct_item
                         name: (type_identifier) @struct.name
                         body: (_)? @struct.body) @struct
-                    
+
                     (enum_item
                         name: (type_identifier) @enum.name
                         body: (_) @enum.body) @enum
-                    
+
                     (trait_item
                         name: (type_identifier) @trait.name
                         body: (_) @trait.body) @trait
@@ -197,11 +197,11 @@ impl AstChunker {
                         name: (identifier) @function.name
                         parameters: (formal_parameters) @function.params
                         body: (statement_block) @function.body) @function
-                    
+
                     (arrow_function
                         parameters: (_) @arrow.params
                         body: (_) @arrow.body) @arrow
-                    
+
                     (method_definition
                         name: (_) @method.name
                         parameters: (formal_parameters) @method.params
@@ -233,7 +233,7 @@ impl AstChunker {
                         name: (identifier) @function.name
                         parameters: (parameter_list) @function.params
                         body: (block) @function.body) @function
-                    
+
                     (method_declaration
                         receiver: (parameter_list) @method.receiver
                         name: (field_identifier) @method.name
@@ -643,10 +643,10 @@ from typing import List
 class DataProcessor:
     def __init__(self, name: str):
         self.name = name
-        
+
     def process(self, data: List[float]) -> np.ndarray:
         return np.array(data) * 2
-        
+
 def standalone_function(x: int) -> int:
     """Helper function"""
     return x * 2

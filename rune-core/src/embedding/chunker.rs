@@ -67,24 +67,22 @@ impl CodeChunker {
 
         // Try AST-based chunking first if available
         if self.config.preserve_structure {
-            if let Some(lang_str) = language.as_deref() {
-                if let Ok(lang) = Language::from_str(lang_str) {
-                    if lang.supports_tree_sitter() {
-                        if let Some(ref mut ast_chunker) = self.ast_chunker {
-                            match ast_chunker.chunk_file(content, file_path, lang) {
-                                Ok(chunks) => {
-                                    debug!("Successfully used AST chunking for {}", file_path);
-                                    return chunks;
-                                },
-                                Err(e) => {
-                                    warn!(
-                                        "AST chunking failed for {}: {}, falling back to heuristics",
-                                        file_path, e
-                                    );
-                                },
-                            }
-                        }
-                    }
+            if let Some(lang_str) = language.as_deref()
+                && let Ok(lang) = Language::from_str(lang_str)
+                && lang.supports_tree_sitter()
+                && let Some(ref mut ast_chunker) = self.ast_chunker
+            {
+                match ast_chunker.chunk_file(content, file_path, lang) {
+                    Ok(chunks) => {
+                        debug!("Successfully used AST chunking for {}", file_path);
+                        return chunks;
+                    },
+                    Err(e) => {
+                        warn!(
+                            "AST chunking failed for {}: {}, falling back to heuristics",
+                            file_path, e
+                        );
+                    },
                 }
             }
             // Fallback to heuristic-based structural chunking

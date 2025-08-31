@@ -206,16 +206,15 @@ impl Indexer {
 
                     // Index for semantic search if enabled
                     #[cfg(feature = "semantic")]
-                    if let Some(ref semantic_searcher) = self.semantic_searcher {
-                        if let Err(e) = semantic_searcher
+                    if let Some(ref semantic_searcher) = self.semantic_searcher
+                        && let Err(e) = semantic_searcher
                             .index_file(&file_path.to_string_lossy(), &content)
                             .await
-                        {
-                            error!(
-                                "Failed to index file for semantic search {:?}: {}",
-                                file_path, e
-                            );
-                        }
+                    {
+                        error!(
+                            "Failed to index file for semantic search {:?}: {}",
+                            file_path, e
+                        );
                     }
 
                     // Store metadata
@@ -284,10 +283,10 @@ impl Indexer {
 
                 // Index for semantic search if enabled
                 #[cfg(feature = "semantic")]
-                if let Some(searcher) = semantic_searcher {
-                    if let Err(e) = searcher.index_file(&path.to_string_lossy(), &content).await {
-                        error!("Failed to index file for semantic search {:?}: {}", path, e);
-                    }
+                if let Some(searcher) = semantic_searcher
+                    && let Err(e) = searcher.index_file(&path.to_string_lossy(), &content).await
+                {
+                    error!("Failed to index file for semantic search {:?}: {}", path, e);
                 }
 
                 // Store metadata

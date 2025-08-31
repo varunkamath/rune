@@ -75,11 +75,10 @@ reqwest = { version = "0.12", features = ["json", "stream"] }
 # Vector database
 qdrant-client = { version = "1.12", optional = true }
 
-# Embedding support (legacy - kept for compatibility)
-candle-core = { version = "0.9", optional = true }
-candle-nn = { version = "0.9", optional = true }
-candle-transformers = { version = "0.9", optional = true }
-tokenizers = { version = "0.22", default-features = false, features = ["onig"], optional = true }
+# Embedding support
+ort = { version = "2.0.0-rc.10", default-features = false, features = ["std", "download-binaries", "copy-dylibs", "ndarray"], optional = true }
+tokenizers = { version = "0.20", default-features = false, features = ["onig"], optional = true }
+dirs = { version = "5.0", optional = true }
 
 [dev-dependencies]
 mockall = { workspace = true }
@@ -91,4 +90,4 @@ pretty_assertions = "1.4"
 [features]
 default = ["semantic"]
 semantic = ["qdrant-client", "embeddings"]
-embeddings = ["candle-core", "candle-nn", "candle-transformers", "tokenizers"]
+embeddings = ["ort", "tokenizers", "dirs"]

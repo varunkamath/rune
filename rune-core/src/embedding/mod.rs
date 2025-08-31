@@ -1,6 +1,7 @@
 pub mod ast_chunker;
 pub mod chunker;
 pub mod generator;
+pub mod model_manager;
 pub mod qdrant;
 
 pub use chunker::{ChunkType, ChunkerConfig, CodeChunk, CodeChunker};
