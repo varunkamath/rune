@@ -1,3 +1,4 @@
+pub mod ast_chunker;
 pub mod chunker;
 pub mod generator;
 pub mod qdrant;
@@ -16,14 +17,16 @@ use crate::Config;
 pub struct EmbeddingPipeline {
     generator: Arc<EmbeddingGenerator>,
     qdrant: Arc<QdrantManager>,
-    chunker: CodeChunker,
+    chunker: Arc<tokio::sync::Mutex<CodeChunker>>,
 }
 
 impl EmbeddingPipeline {
     pub async fn new(config: Arc<Config>) -> Result<Self> {
         let generator = Arc::new(EmbeddingGenerator::new(config.clone()).await?);
         let qdrant = Arc::new(QdrantManager::new(config.clone()).await?);
-        let chunker = CodeChunker::new(ChunkerConfig::default());
+        let chunker = Arc::new(tokio::sync::Mutex::new(CodeChunker::new(
+            ChunkerConfig::default(),
+        )));
 
         Ok(Self {
             generator,
@@ -40,7 +43,10 @@ impl EmbeddingPipeline {
         }
 
         // Chunk the file
-        let chunks = self.chunker.chunk_file(content, file_path);
+        let chunks = {
+            let mut chunker = self.chunker.lock().await;
+            chunker.chunk_file(content, file_path)
+        };
         if chunks.is_empty() {
             return Ok(());
         }

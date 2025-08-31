@@ -1,4 +1,7 @@
-use tracing::debug;
+use tracing::{debug, warn};
+
+use super::ast_chunker::{AstChunker, AstChunkerConfig};
+use crate::indexing::language_detector::Language;
 
 /// Configuration for the chunking strategy
 #[derive(Debug, Clone)]
@@ -27,15 +30,34 @@ impl Default for ChunkerConfig {
 /// Splits code into chunks for embedding
 pub struct CodeChunker {
     config: ChunkerConfig,
+    ast_chunker: Option<AstChunker>,
 }
 
 impl CodeChunker {
     pub fn new(config: ChunkerConfig) -> Self {
-        Self { config }
+        // Initialize AST chunker if structure preservation is enabled
+        let ast_chunker = if config.preserve_structure {
+            let ast_config = AstChunkerConfig {
+                target_size: config.chunk_size,
+                max_size: config.max_chunk_size,
+                min_size: 200,
+                include_imports: true,
+                include_parent_context: true,
+                context_overlap: super::ast_chunker::ContextOverlap::Moderate,
+            };
+            Some(AstChunker::new(ast_config))
+        } else {
+            None
+        };
+
+        Self {
+            config,
+            ast_chunker,
+        }
     }
 
     /// Chunk a file's content intelligently
-    pub fn chunk_file(&self, content: &str, file_path: &str) -> Vec<CodeChunk> {
+    pub fn chunk_file(&mut self, content: &str, file_path: &str) -> Vec<CodeChunk> {
         if content.is_empty() {
             return Vec::new();
         }
@@ -43,7 +65,29 @@ impl CodeChunker {
         // Detect language from file extension
         let language = Self::detect_language(file_path);
 
-        if self.config.preserve_structure && language.is_some() {
+        // Try AST-based chunking first if available
+        if self.config.preserve_structure {
+            if let Some(lang_str) = language.as_deref() {
+                if let Ok(lang) = Language::from_str(lang_str) {
+                    if lang.supports_tree_sitter() {
+                        if let Some(ref mut ast_chunker) = self.ast_chunker {
+                            match ast_chunker.chunk_file(content, file_path, lang) {
+                                Ok(chunks) => {
+                                    debug!("Successfully used AST chunking for {}", file_path);
+                                    return chunks;
+                                },
+                                Err(e) => {
+                                    warn!(
+                                        "AST chunking failed for {}: {}, falling back to heuristics",
+                                        file_path, e
+                                    );
+                                },
+                            }
+                        }
+                    }
+                }
+            }
+            // Fallback to heuristic-based structural chunking
             self.chunk_with_structure(content, file_path, language.as_deref())
         } else {
             self.chunk_simple(content, file_path)

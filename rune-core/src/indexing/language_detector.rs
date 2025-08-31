@@ -121,6 +121,37 @@ impl Language {
         }
     }
 
+    pub fn from_str(s: &str) -> Result<Self, String> {
+        match s {
+            "rust" => Ok(Language::Rust),
+            "javascript" => Ok(Language::JavaScript),
+            "typescript" => Ok(Language::TypeScript),
+            "python" => Ok(Language::Python),
+            "go" => Ok(Language::Go),
+            "java" => Ok(Language::Java),
+            "cpp" | "c++" => Ok(Language::Cpp),
+            "c" => Ok(Language::C),
+            "csharp" | "c#" => Ok(Language::CSharp),
+            "ruby" => Ok(Language::Ruby),
+            "php" => Ok(Language::Php),
+            "swift" => Ok(Language::Swift),
+            "kotlin" => Ok(Language::Kotlin),
+            "scala" => Ok(Language::Scala),
+            "haskell" => Ok(Language::Haskell),
+            "elixir" => Ok(Language::Elixir),
+            "html" => Ok(Language::Html),
+            "css" => Ok(Language::Css),
+            "markdown" | "md" => Ok(Language::Markdown),
+            "json" => Ok(Language::Json),
+            "yaml" | "yml" => Ok(Language::Yaml),
+            "toml" => Ok(Language::Toml),
+            "xml" => Ok(Language::Xml),
+            "shell" | "bash" | "sh" => Ok(Language::Shell),
+            "unknown" => Ok(Language::Unknown),
+            _ => Err(format!("Unknown language: {}", s)),
+        }
+    }
+
     pub fn get_comment_syntax(&self) -> CommentSyntax {
         match self {
             Language::Rust
