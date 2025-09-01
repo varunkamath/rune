@@ -159,3 +159,7 @@ impl Clone for RegexSearcher {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "regex_test.rs"]
+mod tests;

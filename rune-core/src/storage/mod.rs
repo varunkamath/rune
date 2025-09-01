@@ -130,7 +130,7 @@ impl StorageBackend {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Encode, Decode)]
+#[derive(Debug, Clone, Serialize, Deserialize, Encode, Decode)]
 pub struct FileMetadata {
     pub path: PathBuf,
     pub size: u64,

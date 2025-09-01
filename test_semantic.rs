@@ -51,7 +51,7 @@ async fn main() -> anyhow::Result<()> {
     let results = engine.search().search(query).await?;
     println!("Found {} semantic results", results.results.len());
     for (i, result) in results.results.iter().enumerate() {
-        println!("  {}. {}:{} - {}", 
+        println!("  {}. {}:{} - {}",
             i + 1,
             result.file_path.display(),
             result.line_number,
@@ -73,7 +73,7 @@ async fn main() -> anyhow::Result<()> {
     let results = engine.search().search(query).await?;
     println!("Found {} semantic results", results.results.len());
     for (i, result) in results.results.iter().enumerate() {
-        println!("  {}. {}:{} - {}", 
+        println!("  {}. {}:{} - {}",
             i + 1,
             result.file_path.display(),
             result.line_number,
@@ -95,7 +95,7 @@ async fn main() -> anyhow::Result<()> {
     let results = engine.search().search(query).await?;
     println!("Found {} hybrid results", results.results.len());
     for (i, result) in results.results.iter().enumerate() {
-        println!("  {}. {}:{} - {}", 
+        println!("  {}. {}:{} - {}",
             i + 1,
             result.file_path.display(),
             result.line_number,

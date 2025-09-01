@@ -87,8 +87,33 @@ proptest = { workspace = true }
 criterion = { workspace = true }
 tempfile = "3.10"
 pretty_assertions = "1.4"
+rand = "0.8"
 
 [features]
 default = ["semantic"]
 semantic = ["qdrant-client", "embeddings"]
 embeddings = ["ort", "tokenizers", "dirs"]
+
+[[bench]]
+name = "indexing_bench"
+harness = false
+
+[[bench]]
+name = "search_bench"
+harness = false
+
+[[bench]]
+name = "hybrid_bench"
+harness = false
+
+[[bench]]
+name = "embedding_bench"
+harness = false
+
+[[bench]]
+name = "storage_bench"
+harness = false
+
+[[bench]]
+name = "simple_storage_bench"
+harness = false

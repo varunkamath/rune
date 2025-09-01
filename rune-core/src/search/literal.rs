@@ -41,10 +41,12 @@ impl LiteralSearcher {
 
         let tantivy_query = query_parser.parse_query(&query.query)?;
 
-        // Search documents
+        // Search documents - fetch extra to account for multiple matches per document
+        // and to ensure we have enough results after applying offset
+        let fetch_limit = (query.limit + query.offset) * 10; // Fetch 10x to ensure we have enough
         let docs = self
             .tantivy_indexer
-            .search_documents(tantivy_query.as_ref(), query.limit + query.offset)
+            .search_documents(tantivy_query.as_ref(), fetch_limit)
             .await?;
 
         // Convert to SearchResult with line numbers and context
@@ -89,7 +91,10 @@ impl LiteralSearcher {
             results.extend(search_results);
         }
 
-        Ok(results)
+        // Apply offset and limit to the final results
+        let start = query.offset.min(results.len());
+        let end = (start + query.limit).min(results.len());
+        Ok(results[start..end].to_vec())
     }
 
     fn find_matches_in_content(
@@ -146,3 +151,7 @@ impl LiteralSearcher {
         Ok(results)
     }
 }
+
+#[cfg(test)]
+#[path = "literal_test.rs"]
+mod tests;
