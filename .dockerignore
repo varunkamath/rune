@@ -1,0 +1,94 @@
+# Git
+.git
+.github
+.gitignore
+
+# Documentation
+*.md
+!README.md
+docs/
+LICENSE
+
+# Development
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+.yarn/
+
+# TypeScript
+*.tsbuildinfo
+mcp-server/dist/
+mcp-server/coverage/
+
+# Rust
+target/
+**/*.rs.bk
+*.pdb
+
+# Testing
+test-fixtures/
+*.test.*
+*.spec.*
+coverage/
+.nyc_output/
+
+# Cache and temporary files
+.rune_cache/
+.rune/
+*.log
+tmp/
+temp/
+
+# Build artifacts
+*.node
+*.so
+*.dylib
+*.dll
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.travis.yml
+.gitlab-ci.yml
+azure-pipelines.yml
+.circleci/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Benchmarks (large files)
+benches/
+criterion/
+
+# IDE
+.cursor/
+.continue/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+.directory
+.Trash-*

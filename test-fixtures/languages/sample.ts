@@ -51,8 +51,7 @@ export class UserRepository implements Repository<User> {
   }
 
   findByEmail(email: string): Promise<User | null> {
-    const user = Array.from(this.users.values())
-      .find(u => u.email === email);
+    const user = Array.from(this.users.values()).find((u) => u.email === email);
     return Promise.resolve(user || null);
   }
 }
@@ -68,7 +67,7 @@ export class AuthService {
     if (!user) {
       return null;
     }
-    
+
     // Simulate password check
     const isValid = this.validatePassword(password);
     return isValid ? user : null;
@@ -85,24 +84,21 @@ export class AuthService {
 }
 
 // Generic function
-export function mapArray<T, U>(
-  items: T[],
-  mapper: (item: T) => U
-): U[] {
+export function mapArray<T, U>(items: T[], mapper: (item: T) => U): U[] {
   return items.map(mapper);
 }
 
 // Async generator function
 export async function* generateNumbers(max: number) {
   for (let i = 0; i < max; i++) {
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
     yield i;
   }
 }
 
 // Arrow function with type inference
-export const filterUsers = (users: User[], role: UserRole) => 
-  users.filter(user => user.roles.includes(role));
+export const filterUsers = (users: User[], role: UserRole) =>
+  users.filter((user) => user.roles.includes(role));
 
 // Class with decorators (when enabled)
 class APIController {
@@ -133,7 +129,7 @@ export namespace Utils {
   export function formatDate(date: Date): string {
     return date.toISOString();
   }
-  
+
   export function parseDate(str: string): Date {
     return new Date(str);
   }

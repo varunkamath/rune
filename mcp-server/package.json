@@ -1,9 +1,12 @@
 {
-  "name": "@rune/mcp-server",
+  "name": "@rune-mcp/server",
   "version": "0.1.0",
-  "description": "MCP server for Rune code context engine",
+  "description": "High-performance MCP code context engine with embedded Qdrant",
   "main": "dist/index.js",
   "type": "module",
+  "bin": {
+    "rune-mcp": "./bin/rune-mcp.js"
+  },
   "scripts": {
     "build": "pnpm run build:bridge && pnpm run build:ts",
     "build:bridge": "cargo build --all-features --release --manifest-path ../rune-bridge/Cargo.toml && cp ../target/release/librune_bridge.dylib rune.node 2>/dev/null || cp ../target/release/librune_bridge.so rune.node 2>/dev/null || cp ../target/release/rune_bridge.dll rune.node 2>/dev/null",
@@ -15,16 +18,38 @@
     "inspect:alt": "npx @modelcontextprotocol/inspector --port 7274 --proxy-port 7277 node dist/index.js",
     "test": "jest",
     "clean": "rm -rf dist *.node",
-    "postinstall": "node scripts/postinstall.js"
+    "postinstall": "node scripts/postinstall.js",
+    "docker:build": "docker build -t ghcr.io/rune-mcp/server:latest ..",
+    "docker:run": "docker run -d --name rune -v $(pwd):/workspace:ro ghcr.io/rune-mcp/server:latest",
+    "prepublishOnly": "pnpm run build"
   },
   "keywords": [
     "mcp",
+    "model-context-protocol",
     "code-search",
     "semantic-search",
-    "ast"
+    "ast",
+    "code-intelligence",
+    "ai-tools",
+    "claude",
+    "copilot",
+    "cursor",
+    "qdrant"
   ],
-  "author": "Varun Kamath ",
+  "author": "Varun Kamath",
   "license": "MIT",
+  "homepage": "https://github.com/rune-mcp/server#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rune-mcp/server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rune-mcp/server/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.4",
     "zod": "^4.1.5"
@@ -44,10 +69,14 @@
   },
   "files": [
     "dist",
-    "*.node"
+    "bin",
+    "scripts",
+    "*.node",
+    "README.md",
+    "LICENSE"
   ],
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "packageManager": "pnpm@10.15.0"
 }

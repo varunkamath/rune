@@ -1,0 +1,8 @@
+{
+  "command": "docker",
+  "args": ["exec", "-i", "rune", "node", "/app/dist/index.js"],
+  "transport": "stdio",
+  "env": {
+    "RUNE_WORKSPACE": "."
+  }
+}

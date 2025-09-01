@@ -1,0 +1,21 @@
+#!/command/with-contenv sh
+# S6 service definition for Rune MCP Server
+
+# Wait for Qdrant to be healthy before starting Rune
+echo "Waiting for Qdrant to be ready..."
+for i in $(seq 1 30); do
+    if curl -sf http://localhost:6334/health > /dev/null 2>&1; then
+        echo "Qdrant is ready!"
+        break
+    fi
+    if [ $i -eq 30 ]; then
+        echo "ERROR: Qdrant failed to start after 30 seconds"
+        exit 1
+    fi
+    sleep 1
+done
+
+# Start Rune MCP Server
+exec 2>&1
+exec s6-setuidgid rune \
+    node /app/dist/index.js

@@ -1,0 +1,12 @@
+#!/command/with-contenv sh
+# S6 service definition for Qdrant
+
+# Ensure data directory exists
+mkdir -p /data/qdrant
+
+# Start Qdrant with proper user permissions
+exec 2>&1
+exec s6-setuidgid rune \
+    /usr/local/bin/qdrant \
+    --storage-path /data/qdrant \
+    --log-level info

@@ -6,9 +6,13 @@
  * for npm packages in the future.
  */
 
-const { existsSync, copyFileSync } = require('fs');
-const { join, dirname } = require('path');
-const { platform, arch } = require('os');
+import { existsSync, copyFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { platform, arch } from 'os';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const BINARY_NAME = 'rune.node';
 const ROOT_DIR = join(__dirname, '..');
@@ -27,7 +31,7 @@ function getPlatformKey() {
   return `${platform()}-${arch()}`;
 }
 
-function findPrebuiltBinary() {
+async function findPrebuiltBinary() {
   const platformKey = getPlatformKey();
   const mappedPlatform = PLATFORM_MAP[platformKey];
 
@@ -41,6 +45,8 @@ function findPrebuiltBinary() {
 
   try {
     // Try to resolve the platform-specific package
+    const { createRequire } = await import('module');
+    const require = createRequire(import.meta.url);
     const platformPackagePath = require.resolve(`${platformPackage}/package.json`);
     const platformDir = dirname(platformPackagePath);
     const binaryPath = join(platformDir, BINARY_NAME);
@@ -66,7 +72,7 @@ function copyBinary(source, destination) {
   }
 }
 
-function main() {
+async function main() {
   const targetPath = join(ROOT_DIR, BINARY_NAME);
 
   // Check if binary already exists (e.g., from local build)
@@ -76,7 +82,7 @@ function main() {
   }
 
   // Try to find and copy prebuilt binary
-  const prebuiltPath = findPrebuiltBinary();
+  const prebuiltPath = await findPrebuiltBinary();
 
   if (prebuiltPath) {
     if (copyBinary(prebuiltPath, targetPath)) {
@@ -103,7 +109,9 @@ function main() {
   );
 }
 
-// Only run if executed directly (not imported)
-if (require.main === module) {
-  main();
-}
+// Run the main function
+main().catch(error => {
+  console.error('Postinstall error:', error);
+  // Don't fail the install
+  process.exit(0);
+});

@@ -5,7 +5,7 @@ class MockRuneBridge {
   initialized = false;
   started = false;
 
-  async initialize(_config: any) {
+  async initialize(_config: Record<string, unknown>) {
     this.initialized = true;
     return JSON.stringify({ success: true });
   }
@@ -15,7 +15,7 @@ class MockRuneBridge {
     return JSON.stringify({ success: true });
   }
 
-  async search(query: any) {
+  async search(query: { query?: string; mode?: string; limit?: number }) {
     return JSON.stringify({
       results: [
         {
@@ -23,15 +23,15 @@ class MockRuneBridge {
           repository: 'test-repo',
           line_number: 10,
           column: 5,
-          content: `Test content matching ${query.query}`,
+          content: `Test content matching ${query.query || 'test'}`,
           context_before: ['// Previous line'],
           context_after: ['// Next line'],
           score: 0.95,
-          match_type: 'Exact'
-        }
+          match_type: 'Exact',
+        },
       ],
       total_matches: 1,
-      search_time_ms: 10
+      search_time_ms: 10,
     });
   }
 
@@ -40,7 +40,7 @@ class MockRuneBridge {
       indexed_files: 150,
       total_symbols: 750,
       index_size_bytes: 2048000,
-      cache_size_bytes: 1024000
+      cache_size_bytes: 1024000,
     });
   }
 
@@ -48,14 +48,14 @@ class MockRuneBridge {
     return JSON.stringify({
       files_indexed: 200,
       symbols_extracted: 1000,
-      time_taken_ms: 2500
+      time_taken_ms: 2500,
     });
   }
 
-  async configure(config: any) {
-    return JSON.stringify({ 
-      success: true, 
-      config 
+  async configure(config: Record<string, unknown>) {
+    return JSON.stringify({
+      success: true,
+      config,
     });
   }
 }
@@ -75,12 +75,12 @@ describe('Bridge Integration Tests', () => {
         maxFileSize: 10485760,
         indexingThreads: 4,
         enableSemantic: true,
-        languages: ['rust', 'typescript']
+        languages: ['rust', 'typescript'],
       };
 
       const result = await bridge.initialize(config);
       const parsed = JSON.parse(result);
-      
+
       expect(bridge.initialized).toBe(true);
       expect(parsed.success).toBe(true);
     });
@@ -96,7 +96,7 @@ describe('Bridge Integration Tests', () => {
       const result = await bridge.search({
         query: 'testFunction',
         mode: 'literal',
-        limit: 10
+        limit: 10,
       });
 
       const parsed = JSON.parse(result);
@@ -107,14 +107,14 @@ describe('Bridge Integration Tests', () => {
     it('should return search results with proper structure', async () => {
       const result = await bridge.search({
         query: 'test',
-        mode: 'literal'
+        mode: 'literal',
       });
 
       const parsed = JSON.parse(result);
       expect(parsed).toHaveProperty('results');
       expect(parsed).toHaveProperty('total_matches');
       expect(parsed).toHaveProperty('search_time_ms');
-      
+
       const firstResult = parsed.results[0];
       expect(firstResult).toHaveProperty('file_path');
       expect(firstResult).toHaveProperty('line_number');
@@ -159,7 +159,7 @@ describe('Bridge Integration Tests', () => {
     it('should update configuration', async () => {
       const newConfig = {
         maxFileSize: 20971520,
-        enableSemantic: false
+        enableSemantic: false,
       };
 
       const result = await bridge.configure(newConfig);
@@ -173,14 +173,14 @@ describe('Bridge Integration Tests', () => {
   describe('Error Handling', () => {
     it('should handle JSON parsing errors gracefully', () => {
       const invalidJson = 'invalid json';
-      
+
       expect(() => JSON.parse(invalidJson)).toThrow();
     });
 
     it('should handle missing required fields', async () => {
       const result = await bridge.search({});
       const parsed = JSON.parse(result);
-      
+
       // Should still return valid structure even with empty query
       expect(parsed).toHaveProperty('results');
       expect(parsed).toHaveProperty('total_matches');

@@ -1,0 +1,13 @@
+{
+  "mcp": {
+    "servers": {
+      "rune": {
+        "command": "docker",
+        "args": ["exec", "-i", "rune", "node", "/app/dist/index.js"],
+        "env": {
+          "RUNE_WORKSPACE": "${workspaceFolder}"
+        }
+      }
+    }
+  }
+}

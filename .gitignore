@@ -30,7 +30,6 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
-pnpm-lock.yaml
 yarn.lock
 
 # Testing
@@ -45,7 +44,6 @@ htmlcov/
 .jest/
 
 # Rust
-Cargo.lock
 **/*.rs.bk
 *.pdb
 debug/
@@ -87,6 +85,7 @@ test_workspace/
 MCP_IMPLEMENTATION_RESEARCH.md
 CLAUDE.md
 MCP_SERVER.md
+.claude/
 
 # Embeddings & Models
 models/

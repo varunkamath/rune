@@ -392,7 +392,10 @@ class RuneMcpServer {
 
 // Debug stdout writes to find pollution source
 const originalStdoutWrite = process.stdout.write;
-process.stdout.write = function (chunk: string | Uint8Array, ...args: unknown[]): boolean {
+process.stdout.write = function (
+  chunk: string | Uint8Array,
+  ...args: Parameters<typeof process.stdout.write> extends [unknown, ...infer R] ? R : never[]
+): boolean {
   // Log any non-JSON writes to stderr for debugging
   const str = chunk?.toString() ?? '';
   if (str && !str.startsWith('{') && !str.startsWith('[')) {

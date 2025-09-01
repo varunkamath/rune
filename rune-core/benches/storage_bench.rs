@@ -30,7 +30,7 @@ fn benchmark_storage_write(c: &mut Criterion) {
             size: 10000,
             modified: 1234567890,
             language: "rust".to_string(),
-            hash: "abc123def456ghi789jkl012mno345pqr678stu901vwx234yz".to_string(),
+            hash: "abc123def456ghi789jkl012mno345pqr678stu901vwx234yz".to_string(), // pragma: allowlist secret
             indexed_at: 1234567890,
         }),
         ("large", FileMetadata {

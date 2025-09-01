@@ -96,15 +96,15 @@ impl Calculator {
     pub fn new() -> Self {
         Self { memory: 0.0 }
     }
-    
+
     pub fn calculate_sum(a: f64, b: f64) -> f64 {
         a + b
     }
-    
+
     pub fn calculate_product(a: f64, b: f64) -> f64 {
         a * b
     }
-    
+
     pub fn calculate_difference(a: f64, b: f64) -> f64 {
         a - b
     }
@@ -140,12 +140,12 @@ def calculate_average(numbers):
 class MathOperations:
     def __init__(self):
         self.history = []
-    
+
     def add(self, a, b):
         result = a + b
         self.history.append(result)
         return result
-    
+
     def multiply(self, a, b):
         result = a * b
         self.history.append(result)
@@ -173,7 +173,7 @@ class Calculator {
     constructor() {
         this.memory = 0;
     }
-    
+
     calculate(operation, a, b) {
         switch(operation) {
             case 'sum':
@@ -241,7 +241,7 @@ email1 = "user@example.com"
 email2 = "admin@test.org"
 email3 = "support@company.net"
 
-# Phone patterns  
+# Phone patterns
 phone1 = "123-456-7890"
 phone2 = "987-654-3210"
 phone3 = "555-123-4567"

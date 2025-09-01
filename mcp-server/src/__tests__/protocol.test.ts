@@ -11,21 +11,21 @@ describe('MCP Protocol Tests', () => {
           properties: {
             query: {
               type: 'string',
-              description: 'Search query'
+              description: 'Search query',
             },
             mode: {
               type: 'string',
               enum: ['literal', 'regex', 'symbol', 'semantic', 'hybrid'],
-              description: 'Search mode'
+              description: 'Search mode',
             },
             limit: {
               type: 'number',
               description: 'Maximum number of results',
-              default: 20
-            }
+              default: 20,
+            },
           },
-          required: ['query']
-        }
+          required: ['query'],
+        },
       };
 
       expect(searchTool.name).toBe('search');
@@ -41,8 +41,8 @@ describe('MCP Protocol Tests', () => {
         description: 'Get the current status of the search index',
         inputSchema: {
           type: 'object',
-          properties: {}
-        }
+          properties: {},
+        },
       };
 
       expect(indexStatusTool.name).toBe('index_status');
@@ -59,10 +59,10 @@ describe('MCP Protocol Tests', () => {
             force: {
               type: 'boolean',
               description: 'Force full reindex',
-              default: false
-            }
-          }
-        }
+              default: false,
+            },
+          },
+        },
       };
 
       expect(reindexTool.name).toBe('reindex');
@@ -78,19 +78,19 @@ describe('MCP Protocol Tests', () => {
           properties: {
             maxFileSize: {
               type: 'number',
-              description: 'Maximum file size to index'
+              description: 'Maximum file size to index',
             },
             enableSemantic: {
               type: 'boolean',
-              description: 'Enable semantic search'
+              description: 'Enable semantic search',
             },
             languages: {
               type: 'array',
               items: { type: 'string' },
-              description: 'Languages to index'
-            }
-          }
-        }
+              description: 'Languages to index',
+            },
+          },
+        },
       };
 
       expect(configureTool.name).toBe('configure');
@@ -110,7 +110,7 @@ describe('MCP Protocol Tests', () => {
         context_before: ['// Previous line'],
         context_after: ['// Next line'],
         score: 0.95,
-        match_type: 'Exact'
+        match_type: 'Exact',
       };
 
       expect(mockSearchResult).toHaveProperty('file_path');
@@ -127,7 +127,7 @@ describe('MCP Protocol Tests', () => {
     it('should handle invalid search mode', () => {
       const invalidMode = 'invalid_mode';
       const validModes = ['literal', 'regex', 'symbol', 'semantic', 'hybrid'];
-      
+
       expect(validModes).not.toContain(invalidMode);
     });
 
@@ -135,7 +135,7 @@ describe('MCP Protocol Tests', () => {
       const searchParams = {
         // Missing 'query' which is required
         mode: 'literal',
-        limit: 10
+        limit: 10,
       };
 
       const hasQuery = 'query' in searchParams;
@@ -146,7 +146,7 @@ describe('MCP Protocol Tests', () => {
       const emptyResults = {
         results: [],
         total_matches: 0,
-        search_time_ms: 5
+        search_time_ms: 5,
       };
 
       expect(emptyResults.results).toHaveLength(0);
@@ -160,7 +160,7 @@ describe('MCP Protocol Tests', () => {
         maxFileSize: 10485760,
         indexingThreads: 4,
         enableSemantic: true,
-        languages: ['rust', 'typescript', 'python']
+        languages: ['rust', 'typescript', 'python'],
       };
 
       expect(config.maxFileSize).toBeGreaterThan(0);
@@ -172,15 +172,15 @@ describe('MCP Protocol Tests', () => {
     it('should handle partial configuration updates', () => {
       const originalConfig = {
         maxFileSize: 10485760,
-        enableSemantic: true
+        enableSemantic: true,
       };
 
       const update = {
-        enableSemantic: false
+        enableSemantic: false,
       };
 
       const newConfig = { ...originalConfig, ...update };
-      
+
       expect(newConfig.maxFileSize).toBe(originalConfig.maxFileSize);
       expect(newConfig.enableSemantic).toBe(false);
     });
