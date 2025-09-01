@@ -48,6 +48,7 @@ htmlcov/
 *.pdb
 debug/
 release/
+rune.node
 
 # Python
 __pycache__/
@@ -65,6 +66,8 @@ ENV/
 *.node.d.ts
 index.js
 index.d.ts
+mcp-server/rune.node
+mcp-server/*.node
 
 # Database & Cache
 qdrant_storage/
