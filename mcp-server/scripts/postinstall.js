@@ -110,7 +110,7 @@ async function main() {
 }
 
 // Run the main function
-main().catch(error => {
+main().catch((error) => {
   console.error('Postinstall error:', error);
   // Don't fail the install
   process.exit(0);

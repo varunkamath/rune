@@ -90,7 +90,7 @@ Options:
 
 Quick Start:
   npx -y @rune-mcp/latest           # Run with automatic setup
-  
+
 Docker (Recommended):
   docker run -d --name rune -v \$(pwd):/workspace:ro ghcr.io/rune-mcp/server:latest
 
@@ -116,28 +116,34 @@ function showVersion() {
 // Start Docker container
 async function startDockerContainer(workspace) {
   console.log('🐳 Starting Rune in Docker container...');
-  
+
   try {
     const result = execSync(
       `docker run -d --name rune -v "${workspace}:/workspace:ro" -v ~/.rune:/data ghcr.io/rune-mcp/server:latest`,
       { stdio: 'pipe', encoding: 'utf8' }
     );
-    
+
     console.log('✅ Rune container started successfully!');
     console.log('');
     console.log('Add to your IDE configuration:');
     console.log('');
     console.log('For Claude Desktop:');
-    console.log(JSON.stringify({
-      mcpServers: {
-        rune: {
-          command: "docker",
-          args: ["exec", "-i", "rune", "node", "/app/dist/index.js"],
-          env: {}
-        }
-      }
-    }, null, 2));
-    
+    console.log(
+      JSON.stringify(
+        {
+          mcpServers: {
+            rune: {
+              command: 'docker',
+              args: ['exec', '-i', 'rune', 'node', '/app/dist/index.js'],
+              env: {},
+            },
+          },
+        },
+        null,
+        2
+      )
+    );
+
     return true;
   } catch (error) {
     console.error('❌ Failed to start Docker container:', error.message);
@@ -160,10 +166,14 @@ async function main() {
   }
 
   // Check if Docker is available and suggest using it
-  if (!options.docker && await checkDocker()) {
-    console.log('🐳 Docker detected! For the best experience, we recommend running Rune in Docker:');
+  if (!options.docker && (await checkDocker())) {
+    console.log(
+      '🐳 Docker detected! For the best experience, we recommend running Rune in Docker:'
+    );
     console.log('');
-    console.log(`  docker run -d --name rune -v "${options.workspace}:/workspace:ro" ghcr.io/rune-mcp/server:latest`);
+    console.log(
+      `  docker run -d --name rune -v "${options.workspace}:/workspace:ro" ghcr.io/rune-mcp/server:latest`
+    );
     console.log('');
     console.log('Or run with --docker flag to use Docker automatically:');
     console.log('  rune-mcp --docker');
@@ -194,7 +204,9 @@ async function main() {
     console.error('⚠️  Native module not found.');
     console.error('');
     console.error('Please either:');
-    console.error('1. Use Docker (recommended): docker run -d --name rune -v $(pwd):/workspace:ro ghcr.io/rune-mcp/server:latest');
+    console.error(
+      '1. Use Docker (recommended): docker run -d --name rune -v $(pwd):/workspace:ro ghcr.io/rune-mcp/server:latest'
+    );
     console.error('2. Build from source: npm run build:bridge');
     process.exit(1);
   }
@@ -220,7 +232,7 @@ async function main() {
   // Start MCP server
   console.log('Starting Rune MCP Server...');
   console.log(`Workspace: ${options.workspace}`);
-  
+
   const server = spawn('node', [join(__dirname, '..', 'dist', 'index.js')], {
     stdio: 'inherit',
     env,

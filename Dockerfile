@@ -6,7 +6,7 @@ ARG RUST_VERSION=1.89
 FROM rust:${RUST_VERSION}-slim-bookworm AS rust-builder
 
 # Install build dependencies for Debian
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
     build-essential \
@@ -22,41 +22,35 @@ COPY rune-core ./rune-core
 COPY rune-bridge ./rune-bridge
 
 # Build with cache mounts for Cargo
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
+RUN --mount=type=cache,target=/app/target/ \
+    --mount=type=cache,target=/usr/local/cargo/git/db \
+    --mount=type=cache,target=/usr/local/cargo/registry/ \
     cargo build --release --all-features
 
 # ============== Build Stage: Node.js/TypeScript ==============
 FROM node:${NODE_VERSION}-slim AS node-builder
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+WORKDIR /app
 
-WORKDIR /build
+# Copy only the mcp-server package files (simplified for npm)
+COPY mcp-server/package.json ./
+COPY mcp-server/scripts ./scripts
 
-# Copy workspace files for monorepo
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
-COPY mcp-server/package.json ./mcp-server/
-COPY mcp-server/scripts ./mcp-server/scripts
-
-# Install dependencies with cache mount
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --filter @rune-mcp/server
+# Generate package-lock.json and install all dependencies
+RUN npm install
 
 # Copy TypeScript source
-COPY mcp-server ./mcp-server
+COPY mcp-server/src ./src
+COPY mcp-server/tsconfig.json ./
 
-# Build TypeScript
-WORKDIR /build/mcp-server
-RUN pnpm run build:ts
-
-# Install production dependencies only
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --prod
+# Build TypeScript and remove dev dependencies in one layer
+RUN npm run build:ts && \
+    npm prune --omit=dev
 
 # ============== Build Stage: Qdrant ==============
 FROM debian:trixie-slim AS qdrant-downloader
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     tar \
     ca-certificates \
@@ -70,8 +64,11 @@ RUN wget -q https://github.com/qdrant/qdrant/releases/download/v1.12.0/qdrant-x8
 # ============== Production Stage ==============
 FROM debian:trixie-slim AS production
 
+# Set shell for pipefail option
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 # Install Node.js 22 from NodeSource repository
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     gnupg \
@@ -79,14 +76,14 @@ RUN apt-get update && apt-get install -y \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
     && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" > /etc/apt/sources.list.d/nodesource.list \
     && apt-get update \
-    && apt-get install -y nodejs \
+    && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 # Install s6-overlay for process supervision (glibc version)
 ARG S6_OVERLAY_VERSION=3.2.0.0
 ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz /tmp
 ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-x86_64.tar.xz /tmp
-RUN apt-get update && apt-get install -y xz-utils && \
+RUN apt-get update && apt-get install -y --no-install-recommends xz-utils && \
     tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz && \
     tar -C / -Jxpf /tmp/s6-overlay-x86_64.tar.xz && \
     rm /tmp/*.tar.xz && \
@@ -95,7 +92,7 @@ RUN apt-get update && apt-get install -y xz-utils && \
     rm -rf /var/lib/apt/lists/*
 
 # Install runtime dependencies only
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     tzdata \
@@ -117,10 +114,10 @@ COPY --from=rust-builder --chown=rune:rune \
     /build/target/release/librune_bridge.* \
     /app/rune.node
 
-# Copy Node.js application
-COPY --from=node-builder --chown=rune:rune /build/mcp-server/dist /app/dist
-COPY --from=node-builder --chown=rune:rune /build/mcp-server/node_modules /app/node_modules
-COPY --from=node-builder --chown=rune:rune /build/mcp-server/package.json /app/
+# Copy built application and production dependencies from npm build
+COPY --from=node-builder --chown=rune:rune /app/dist /app/dist
+COPY --from=node-builder --chown=rune:rune /app/node_modules /app/node_modules
+COPY --from=node-builder --chown=rune:rune /app/package.json /app/
 
 # Copy s6 service definitions
 COPY --chown=rune:rune docker/s6-services /etc/s6-overlay/s6-rc.d
