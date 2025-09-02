@@ -160,3 +160,173 @@ impl SemanticSearcher {
         false
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::StorageBackend;
+    use std::sync::Arc;
+    use tempfile::tempdir;
+
+    fn create_test_config() -> Arc<Config> {
+        Arc::new(Config {
+            workspace_roots: vec![tempdir().unwrap().path().to_path_buf()],
+            workspace_dir: tempdir().unwrap().path().to_string_lossy().to_string(),
+            cache_dir: tempdir().unwrap().path().to_path_buf(),
+            max_file_size: 10 * 1024 * 1024,
+            indexing_threads: 1,
+            enable_semantic: true,
+            languages: vec!["rust".to_string()],
+        })
+    }
+
+    #[tokio::test]
+    async fn test_semantic_searcher_initialization_without_qdrant() {
+        // When Qdrant is not available, the searcher should initialize but pipeline should be None
+        let config = create_test_config();
+        let storage = StorageBackend::new(&config.cache_dir).await.unwrap();
+        
+        // This test will pass regardless of Qdrant availability
+        let searcher = SemanticSearcher::new(config, storage).await.unwrap();
+        
+        // If Qdrant is not running, is_available should return false
+        // If it is running, it should return true
+        let _ = searcher.is_available(); // Don't assert, just check it doesn't panic
+    }
+
+    #[tokio::test]
+    #[ignore = "This test requires Qdrant to not be running"]
+    async fn test_search_with_no_pipeline_returns_empty() {
+        // Explicitly disable semantic search and set a bad Qdrant URL
+        unsafe {
+            std::env::set_var("RUNE_ENABLE_SEMANTIC", "false");
+            std::env::set_var("QDRANT_URL", "http://127.0.0.1:99999"); // Non-existent port
+        }
+        
+        let config = Arc::new(Config {
+            workspace_roots: vec![],
+            workspace_dir: String::new(),
+            cache_dir: tempdir().unwrap().path().to_path_buf(),
+            max_file_size: 10 * 1024 * 1024,
+            indexing_threads: 1,
+            enable_semantic: false, // Disable semantic to ensure no pipeline
+            languages: vec![],
+        });
+        
+        let storage = StorageBackend::new(&config.cache_dir).await.unwrap();
+        let searcher = SemanticSearcher::new(config, storage).await.unwrap();
+        
+        // Clean up env vars before assertions that might fail
+        unsafe {
+            std::env::remove_var("RUNE_ENABLE_SEMANTIC");
+            std::env::remove_var("QDRANT_URL");
+        }
+        
+        let query = SearchQuery {
+            query: "test query".to_string(),
+            mode: super::super::SearchMode::Semantic,
+            repositories: None,
+            file_patterns: None,
+            limit: 10,
+            offset: 0,
+        };
+        
+        let results = searcher.search(&query).await.unwrap();
+        assert_eq!(results.len(), 0, "Should return empty results when semantic is disabled");
+        assert!(!searcher.is_available(), "Searcher should not be available when semantic is disabled");
+    }
+
+    #[tokio::test]
+    async fn test_extract_repo_from_path() {
+        let config = create_test_config();
+        let storage = StorageBackend::new(&config.cache_dir).await.unwrap();
+        
+        // We need to test synchronously, so we'll test the helper method directly
+        // by creating a minimal searcher
+        let searcher = SemanticSearcher {
+            config,
+            storage,
+            pipeline: None,
+        };
+        
+        assert_eq!(searcher.extract_repo_from_path("repo/path/file.rs"), "repo");
+        assert_eq!(searcher.extract_repo_from_path("single.rs"), "single.rs");
+        assert_eq!(searcher.extract_repo_from_path("deep/nested/path/file.rs"), "deep");
+    }
+
+    #[tokio::test]
+    async fn test_matches_patterns() {
+        let config = create_test_config();
+        let storage = StorageBackend::new(&config.cache_dir).await.unwrap();
+        let searcher = SemanticSearcher {
+            config,
+            storage,
+            pipeline: None,
+        };
+        
+        // Test exact match
+        assert!(searcher.matches_patterns("test.rs", &["test.rs".to_string()]));
+        
+        // Test glob patterns
+        assert!(searcher.matches_patterns("src/main.rs", &["*.rs".to_string()]));
+        assert!(searcher.matches_patterns("src/lib.rs", &["src/*.rs".to_string()]));
+        assert!(searcher.matches_patterns("deep/nested/file.rs", &["**/*.rs".to_string()]));
+        
+        // Test partial match
+        assert!(searcher.matches_patterns("src/main.rs", &["main".to_string()]));
+        
+        // Test no match
+        assert!(!searcher.matches_patterns("test.py", &["*.rs".to_string()]));
+        assert!(!searcher.matches_patterns("test.rs", &["*.py".to_string()]));
+    }
+
+    #[tokio::test]
+    async fn test_search_with_filters() {
+        let config = create_test_config();
+        let storage = StorageBackend::new(&config.cache_dir).await.unwrap();
+        let searcher = SemanticSearcher::new(config, storage).await.unwrap();
+        
+        // Create a query with filters
+        let query = SearchQuery {
+            query: "test".to_string(),
+            mode: super::super::SearchMode::Semantic,
+            repositories: Some(vec!["test_repo".to_string()]),
+            file_patterns: Some(vec!["*.rs".to_string()]),
+            limit: 5,
+            offset: 0,
+        };
+        
+        // This should not panic even without pipeline
+        let results = searcher.search(&query).await.unwrap();
+        assert_eq!(results.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_clear_index_without_pipeline() {
+        let config = create_test_config();
+        let storage = StorageBackend::new(&config.cache_dir).await.unwrap();
+        let searcher = SemanticSearcher::new(config, storage).await.unwrap();
+        
+        // Should not panic even without pipeline
+        searcher.clear_index().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_index_file_without_pipeline() {
+        let config = Arc::new(Config {
+            workspace_roots: vec![],
+            workspace_dir: String::new(),
+            cache_dir: tempdir().unwrap().path().to_path_buf(),
+            max_file_size: 10 * 1024 * 1024,
+            indexing_threads: 1,
+            enable_semantic: false,
+            languages: vec![],
+        });
+        
+        let storage = StorageBackend::new(&config.cache_dir).await.unwrap();
+        let searcher = SemanticSearcher::new(config, storage).await.unwrap();
+        
+        // Should handle gracefully without pipeline
+        searcher.index_file("test.rs", "fn main() {}").await.unwrap();
+    }
+}
