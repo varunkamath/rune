@@ -5,6 +5,7 @@ pub mod tantivy_indexer;
 
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::Result;
 use rayon::prelude::*;
@@ -17,6 +18,9 @@ use crate::{Config, storage::StorageBackend};
 
 #[cfg(feature = "semantic")]
 use crate::search::semantic::SemanticSearcher;
+
+// Global counter to track indexing calls (for debugging duplicate issue)
+static INDEXING_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 pub struct Indexer {
     config: Arc<Config>,
@@ -138,24 +142,31 @@ impl Indexer {
     }
 
     pub async fn index_workspaces(&self) -> Result<()> {
+        let call_count = INDEXING_COUNTER.fetch_add(1, Ordering::SeqCst) + 1;
         info!(
-            "Indexing {} workspace roots",
+            "[INDEXING START #{}] Indexing {} workspace roots",
+            call_count,
             self.config.workspace_roots.len()
         );
 
         for root in &self.config.workspace_roots {
+            info!(
+                "[INDEXING #{}] Processing workspace root: {:?}",
+                call_count, root
+            );
             self.index_directory(root).await?;
         }
 
         // Commit all changes
         self.tantivy_indexer.commit().await?;
 
-        info!("Indexing complete");
+        info!("[INDEXING COMPLETE #{}] Finished indexing", call_count);
         Ok(())
     }
 
     async fn index_directory(&self, path: &Path) -> Result<()> {
-        info!("Indexing directory: {:?}", path);
+        let call_count = INDEXING_COUNTER.load(Ordering::SeqCst);
+        info!("[INDEXING #{}] Indexing directory: {:?}", call_count, path);
 
         let files = self.file_walker.walk_directory(path).await?;
         let total_files = files.len();

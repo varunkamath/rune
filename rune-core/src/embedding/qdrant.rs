@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::{debug, error, info, warn};
 
 #[cfg(feature = "semantic")]
@@ -47,51 +48,66 @@ impl QdrantManager {
                 });
             }
 
-            let qdrant_url =
-                std::env::var("QDRANT_URL").unwrap_or_else(|_| "http://localhost:6334".to_string());
+            // Try multiple connection strategies with retry logic
+            let connection_attempts = [
+                // Primary: IPv4 explicit gRPC port
+                ("http://127.0.0.1:6334", "IPv4 gRPC"),
+                // Fallback 1: localhost gRPC (might resolve to IPv6)
+                ("http://localhost:6334", "localhost gRPC"),
+                // Fallback 2: IPv4 REST API port (if gRPC is having issues)
+                ("http://127.0.0.1:6333", "IPv4 REST"),
+            ];
 
-            info!("Connecting to Qdrant at {}...", qdrant_url);
+            // Allow override via environment variable
+            let env_url = std::env::var("QDRANT_URL").ok();
+            let mut client_result = None;
 
-            match Qdrant::from_url(&qdrant_url).build() {
-                Ok(client) => {
-                    // Check health
-                    match client.health_check().await {
-                        Ok(_) => {
-                            info!("Successfully connected to Qdrant");
+            // If env var is set, try it first with retries
+            if let Some(url) = env_url {
+                info!(
+                    "[QDRANT] Attempting connection to {} (from QDRANT_URL)",
+                    url
+                );
+                client_result = Self::connect_with_retry(&url, "env", 3).await;
+            }
 
-                            // Initialize collection
-                            if let Err(e) = Self::init_collection(&client, &collection_name).await {
-                                error!("Failed to initialize collection: {}", e);
-                                return Ok(Self {
-                                    config,
-                                    client: None,
-                                    collection_name,
-                                });
-                            }
-
-                            Ok(Self {
-                                config,
-                                client: Some(client),
-                                collection_name,
-                            })
-                        },
-                        Err(e) => {
-                            warn!(
-                                "Qdrant health check failed: {}. Semantic search will be disabled.",
-                                e
-                            );
-                            Ok(Self {
-                                config,
-                                client: None,
-                                collection_name,
-                            })
-                        },
+            // If env var didn't work or wasn't set, try our fallback strategies
+            if client_result.is_none() {
+                for (url, strategy) in &connection_attempts {
+                    info!("[QDRANT] Attempting connection to {} ({})", url, strategy);
+                    if let Some(client) = Self::connect_with_retry(url, strategy, 2).await {
+                        client_result = Some(client);
+                        break;
                     }
+                }
+            }
+
+            match client_result {
+                Some(client) => {
+                    info!("[QDRANT] Successfully connected to Qdrant");
+
+                    // Initialize collection
+                    if let Err(e) = Self::init_collection(&client, &collection_name).await {
+                        error!("[QDRANT] Failed to initialize collection: {}", e);
+                        return Ok(Self {
+                            config,
+                            client: None,
+                            collection_name,
+                        });
+                    }
+
+                    Ok(Self {
+                        config,
+                        client: Some(client),
+                        collection_name,
+                    })
                 },
-                Err(e) => {
-                    warn!(
-                        "Failed to connect to Qdrant: {}. Semantic search will be disabled.",
-                        e
+                None => {
+                    error!(
+                        "[QDRANT] Failed to connect to Qdrant after all attempts. Semantic search will be disabled."
+                    );
+                    error!(
+                        "[QDRANT] Please ensure Qdrant is running: docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant"
                     );
                     Ok(Self {
                         config,
@@ -113,6 +129,56 @@ impl QdrantManager {
     }
 
     #[cfg(feature = "semantic")]
+    async fn connect_with_retry(url: &str, strategy: &str, max_retries: u32) -> Option<Qdrant> {
+        let mut retry_count = 0;
+        let mut delay = Duration::from_secs(1);
+
+        while retry_count < max_retries {
+            match Qdrant::from_url(url).build() {
+                Ok(client) => {
+                    // Test the connection with a health check
+                    match tokio::time::timeout(Duration::from_secs(5), client.health_check()).await
+                    {
+                        Ok(Ok(_)) => {
+                            info!("[QDRANT] Health check passed for {} ({})", url, strategy);
+                            return Some(client);
+                        },
+                        Ok(Err(e)) => {
+                            warn!(
+                                "[QDRANT] Health check failed for {} ({}): {}",
+                                url, strategy, e
+                            );
+                        },
+                        Err(_) => {
+                            warn!("[QDRANT] Health check timed out for {} ({})", url, strategy);
+                        },
+                    }
+                },
+                Err(e) => {
+                    warn!(
+                        "[QDRANT] Failed to build client for {} ({}): {}",
+                        url, strategy, e
+                    );
+                },
+            }
+
+            retry_count += 1;
+            if retry_count < max_retries {
+                info!(
+                    "[QDRANT] Retrying connection in {:?}... (attempt {}/{})",
+                    delay,
+                    retry_count + 1,
+                    max_retries
+                );
+                tokio::time::sleep(delay).await;
+                delay *= 2; // Exponential backoff
+            }
+        }
+
+        None
+    }
+
+    #[cfg(feature = "semantic")]
     async fn init_collection(client: &Qdrant, collection_name: &str) -> Result<()> {
         // Check if collection exists
         let collections = client.list_collections().await?;
@@ -122,7 +188,7 @@ impl QdrantManager {
             .any(|c| c.name == collection_name);
 
         if !exists {
-            info!("Creating collection '{}'", collection_name);
+            info!("[QDRANT] Creating collection '{}'", collection_name);
 
             client
                 .create_collection(
@@ -132,9 +198,12 @@ impl QdrantManager {
                 .await
                 .context("Failed to create collection")?;
 
-            info!("Collection created successfully");
+            info!(
+                "[QDRANT] Collection '{}' created successfully",
+                collection_name
+            );
         } else {
-            debug!("Collection '{}' already exists", collection_name);
+            debug!("[QDRANT] Collection '{}' already exists", collection_name);
         }
 
         Ok(())
@@ -149,7 +218,7 @@ impl QdrantManager {
                     return Ok(());
                 }
 
-                debug!("Storing {} embeddings in Qdrant", chunks.len());
+                debug!("[QDRANT] Storing {} embeddings", chunks.len());
                 if let Some(first_chunk) = chunks.first() {
                     debug!(
                         "First embedding has {} dimensions",
@@ -219,15 +288,15 @@ impl QdrantManager {
                 {
                     Ok(_) => {},
                     Err(e) => {
-                        error!("Failed to upsert points to Qdrant: {:?}", e);
+                        error!("[QDRANT] Failed to upsert points: {:?}", e);
                         return Err(anyhow::anyhow!("Failed to store embeddings: {}", e));
                     },
                 }
 
-                debug!("Successfully stored embeddings");
+                debug!("[QDRANT] Successfully stored embeddings");
                 Ok(())
             } else {
-                debug!("Qdrant client not available, skipping storage");
+                debug!("[QDRANT] Client not available, skipping storage");
                 Ok(())
             }
         }
@@ -249,7 +318,7 @@ impl QdrantManager {
         #[cfg(feature = "semantic")]
         {
             if let Some(ref client) = self.client {
-                debug!("Searching for {} similar vectors", limit);
+                debug!("[QDRANT] Searching for {} similar vectors", limit);
 
                 let search_params = SearchParamsBuilder::default().hnsw_ef(128).exact(false);
 
@@ -327,7 +396,7 @@ impl QdrantManager {
 
                 Ok(search_results)
             } else {
-                debug!("Qdrant client not available");
+                debug!("[QDRANT] Client not available for search");
                 Ok(Vec::new())
             }
         }
@@ -356,7 +425,7 @@ impl QdrantManager {
         #[cfg(feature = "semantic")]
         {
             if let Some(ref client) = self.client {
-                info!("Clearing collection '{}'", self.collection_name);
+                info!("[QDRANT] Clearing collection '{}'", self.collection_name);
                 client.delete_collection(&self.collection_name).await?;
                 Self::init_collection(client, &self.collection_name).await?;
             }

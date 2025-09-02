@@ -10,7 +10,7 @@ pub use qdrant::{EmbeddedChunk, QdrantManager, SemanticSearchResult};
 
 use anyhow::Result;
 use std::sync::Arc;
-use tracing::debug;
+use tracing::{debug, info};
 
 use crate::Config;
 
@@ -43,6 +43,8 @@ impl EmbeddingPipeline {
             return Ok(());
         }
 
+        info!("Processing file for embeddings: {}", file_path);
+
         // Chunk the file
         let chunks = {
             let mut chunker = self.chunker.lock().await;
@@ -52,7 +54,7 @@ impl EmbeddingPipeline {
             return Ok(());
         }
 
-        debug!("Processing {} chunks for {}", chunks.len(), file_path);
+        info!("Processing {} chunks for {}", chunks.len(), file_path);
 
         // Generate embeddings in batches
         let batch_size = 32;
@@ -63,8 +65,28 @@ impl EmbeddingPipeline {
             let embeddings = self.generator.batch_generate(&texts).await?;
 
             for (chunk, embedding) in batch.iter().zip(embeddings.iter()) {
-                // Generate a unique ID using UUID v4
-                let id = uuid::Uuid::new_v4().to_string();
+                // Generate a deterministic UUID based on file path and content
+                // This ensures the same chunk always gets the same ID, preventing duplicates
+                let file_hash = blake3::hash(file_path.as_bytes());
+                let content_hash = blake3::hash(chunk.content.as_bytes());
+                let line_info = format!("{:08x}{:08x}", chunk.start_line, chunk.end_line);
+                let combined = format!(
+                    "{}{}{}",
+                    &file_hash.to_hex()[..16],
+                    line_info,
+                    &content_hash.to_hex()[..8]
+                );
+
+                // Create a valid UUID format from our deterministic hash
+                // Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (8-4-4-4-12)
+                let id = format!(
+                    "{}-{}-{}-{}-{}",
+                    &combined[0..8],
+                    &combined[8..12],
+                    &combined[12..16],
+                    &combined[16..20],
+                    &combined[20..32]
+                );
 
                 embedded_chunks.push(EmbeddedChunk {
                     id,

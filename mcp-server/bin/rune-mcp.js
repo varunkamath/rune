@@ -92,7 +92,7 @@ Quick Start:
   npx -y @rune-mcp/latest           # Run with automatic setup
 
 Docker (Recommended):
-  docker run -d --name rune -v \$(pwd):/workspace:ro ghcr.io/rune-mcp/server:latest
+  docker run -d --name rune -v $(pwd):/workspace:ro ghcr.io/rune-mcp/server:latest
 
 Examples:
   rune-mcp --workspace ~/Projects
@@ -118,7 +118,7 @@ async function startDockerContainer(workspace) {
   console.log('🐳 Starting Rune in Docker container...');
 
   try {
-    const result = execSync(
+    execSync(
       `docker run -d --name rune -v "${workspace}:/workspace:ro" -v ~/.rune:/data ghcr.io/rune-mcp/server:latest`,
       { stdio: 'pipe', encoding: 'utf8' }
     );

@@ -117,3 +117,7 @@ harness = false
 [[bench]]
 name = "simple_storage_bench"
 harness = false
+
+[[bin]]
+name = "test_semantic_direct"
+path = "../test_semantic_direct.rs"

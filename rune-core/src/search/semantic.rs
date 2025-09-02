@@ -18,12 +18,21 @@ impl SemanticSearcher {
         // Try to initialize the embedding pipeline
         let pipeline = match EmbeddingPipeline::new(config.clone()).await {
             Ok(p) => {
-                info!("Semantic search initialized successfully");
-                Some(Arc::new(p))
+                if p.is_available() {
+                    info!(
+                        "[SEMANTIC] Semantic search initialized successfully with Qdrant backend"
+                    );
+                    Some(Arc::new(p))
+                } else {
+                    warn!(
+                        "[SEMANTIC] Embedding pipeline created but Qdrant is not available. Semantic search will be disabled."
+                    );
+                    None
+                }
             },
             Err(e) => {
                 warn!(
-                    "Failed to initialize semantic search: {}. Feature will be disabled.",
+                    "[SEMANTIC] Failed to initialize semantic search: {}. Feature will be disabled.",
                     e
                 );
                 None
@@ -40,11 +49,11 @@ impl SemanticSearcher {
     pub async fn search(&self, query: &SearchQuery) -> Result<Vec<SearchResult>> {
         if let Some(ref pipeline) = self.pipeline {
             if !pipeline.is_available() {
-                debug!("Semantic search pipeline not available");
+                debug!("[SEMANTIC] Pipeline exists but is not available (Qdrant disconnected)");
                 return Ok(vec![]);
             }
 
-            debug!("Performing semantic search for: {}", query.query);
+            debug!("[SEMANTIC] Performing semantic search for: {}", query.query);
 
             // Perform semantic search
             let semantic_results = pipeline.search(&query.query, query.limit).await?;
@@ -83,22 +92,33 @@ impl SemanticSearcher {
                 }
             }
 
-            debug!("Found {} semantic search results", results.len());
+            debug!("[SEMANTIC] Found {} results after filtering", results.len());
             Ok(results)
         } else {
-            debug!("Semantic search not available");
+            debug!("[SEMANTIC] Search skipped - pipeline not initialized");
             Ok(vec![])
         }
     }
 
     /// Process files for semantic indexing
     pub async fn index_file(&self, file_path: &str, content: &str) -> Result<()> {
-        if let Some(ref pipeline) = self.pipeline
-            && pipeline.is_available()
-        {
-            debug!("Indexing file for semantic search: {}", file_path);
-            pipeline.process_file(file_path, content).await?;
+        info!("[SEMANTIC] Attempting to index file: {}", file_path);
+
+        if let Some(ref pipeline) = self.pipeline {
+            if pipeline.is_available() {
+                info!(
+                    "[SEMANTIC] Pipeline available, processing file: {}",
+                    file_path
+                );
+                pipeline.process_file(file_path, content).await?;
+                info!("[SEMANTIC] Successfully indexed file: {}", file_path);
+            } else {
+                warn!("[SEMANTIC] Pipeline not available for file: {}", file_path);
+            }
+        } else {
+            warn!("[SEMANTIC] No pipeline configured for semantic search");
         }
+
         Ok(())
     }
 

@@ -22,8 +22,7 @@ COPY rune-core ./rune-core
 COPY rune-bridge ./rune-bridge
 
 # Build with cache mounts for Cargo
-RUN --mount=type=cache,target=/app/target/ \
-    --mount=type=cache,target=/usr/local/cargo/git/db \
+RUN --mount=type=cache,target=/usr/local/cargo/git/db \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
     cargo build --release --all-features
 
@@ -48,18 +47,11 @@ RUN npm run build:ts && \
     npm prune --omit=dev
 
 # ============== Build Stage: Qdrant ==============
-FROM debian:trixie-slim AS qdrant-downloader
+# Use official Qdrant Docker image which supports both amd64 and arm64
+FROM qdrant/qdrant:v1.15.4 AS qdrant-source
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
-    tar \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# Download Qdrant binary for Linux (glibc version, not musl)
-RUN wget -q https://github.com/qdrant/qdrant/releases/download/v1.12.0/qdrant-x86_64-unknown-linux-gnu.tar.gz && \
-    tar -xzf qdrant-x86_64-unknown-linux-gnu.tar.gz && \
-    chmod +x qdrant
+# The official image already has the correct binary for the platform
+# We just extract it for use in our production image
 
 # ============== Production Stage ==============
 FROM debian:trixie-slim AS production
@@ -80,22 +72,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install s6-overlay for process supervision (glibc version)
-ARG S6_OVERLAY_VERSION=3.2.0.0
+ARG S6_OVERLAY_VERSION=3.2.1.0
 ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz /tmp
-ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-x86_64.tar.xz /tmp
-RUN apt-get update && apt-get install -y --no-install-recommends xz-utils && \
+RUN apt-get update && apt-get install -y --no-install-recommends xz-utils curl && \
     tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz && \
-    tar -C / -Jxpf /tmp/s6-overlay-x86_64.tar.xz && \
+    # Download architecture-specific overlay
+    ARCH=$(uname -m) && \
+    if [ "$ARCH" = "aarch64" ]; then \
+    curl -sSL -o /tmp/s6-overlay-arch.tar.xz https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-aarch64.tar.xz; \
+    else \
+    curl -sSL -o /tmp/s6-overlay-arch.tar.xz https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-x86_64.tar.xz; \
+    fi && \
+    tar -C / -Jxpf /tmp/s6-overlay-arch.tar.xz && \
     rm /tmp/*.tar.xz && \
-    apt-get remove -y xz-utils && \
+    apt-get remove -y xz-utils curl && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
-# Install runtime dependencies only
+# Install runtime dependencies and debugging tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     tzdata \
+    netcat-openbsd \
+    procps \
+    libunwind8 \
+    libunwind-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user (Debian style)
@@ -106,10 +108,11 @@ RUN groupadd -g 1001 rune && \
 RUN mkdir -p /app /data/qdrant /data/cache /workspace /config && \
     chown -R rune:rune /app /data /workspace /config
 
-# Copy Qdrant binary
-COPY --from=qdrant-downloader --chown=rune:rune /qdrant /usr/local/bin/qdrant
+# Copy Qdrant binary from official image
+COPY --from=qdrant-source --chown=rune:rune /qdrant/qdrant /usr/local/bin/qdrant
 
-# Copy Rust native module - handle different possible output names
+# Copy Rust native module - find the actual .so file
+RUN mkdir -p /app
 COPY --from=rust-builder --chown=rune:rune \
     /build/target/release/librune_bridge.* \
     /app/rune.node
@@ -119,8 +122,12 @@ COPY --from=node-builder --chown=rune:rune /app/dist /app/dist
 COPY --from=node-builder --chown=rune:rune /app/node_modules /app/node_modules
 COPY --from=node-builder --chown=rune:rune /app/package.json /app/
 
-# Copy s6 service definitions
+# Copy s6 service definitions and register them
 COPY --chown=rune:rune docker/s6-services /etc/s6-overlay/s6-rc.d
+RUN chmod +x /etc/s6-overlay/s6-rc.d/*/run && \
+    # Register services with s6-rc
+    touch /etc/s6-overlay/s6-rc.d/user/contents.d/qdrant && \
+    touch /etc/s6-overlay/s6-rc.d/user/contents.d/rune
 
 # Copy IDE configuration templates
 COPY --chown=rune:rune docker/configs /config
@@ -141,10 +148,10 @@ ENV NODE_ENV=production \
 # Expose MCP port
 EXPOSE 3333
 
-# Health check
+# Health check - check if MCP server responds to JSON-RPC
 HEALTHCHECK --interval=30s --timeout=10s \
-    --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:3333/health || exit 1
+    --start-period=90s --retries=3 \
+    CMD echo '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"0.1.0","capabilities":{}},"id":1}' | nc -w 2 localhost 3333 | grep -q "serverInfo" || exit 1
 
 # Use s6-overlay as init
 ENTRYPOINT ["/init"]

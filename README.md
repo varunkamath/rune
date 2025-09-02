@@ -5,37 +5,43 @@ multi-modal code search capabilities for AI coding agents. With embedded Qdrant
 vector database, it delivers literal, regex, symbol, semantic, and hybrid search
 across multi-repository workspaces.
 
-## 🚀 Quick Start (One Command!)
+## 🚀 Quick Start
 
-### 🐳 Docker (Recommended)
+### 🐳 Docker Deployment (Production Ready)
 
 ```bash
-# Start Rune with embedded Qdrant - that's it!
+# Build the Docker image
+docker build -t rune-mcp:latest .
+
+# Start Rune with embedded Qdrant
 docker run -d \
   --name rune \
   -v ~/Projects:/workspace:ro \
   -v ~/.rune:/data \
-  ghcr.io/rune-mcp/server:latest
+  -p 6333:6333 \
+  -p 6334:6334 \
+  rune-mcp:latest
 ```
 
-### Alternative: NPX (No Docker)
+**Note**: The container includes both Rune MCP server and Qdrant vector
+database, managed by s6-overlay for process supervision.
+
+### Verify Installation
 
 ```bash
-# Will prompt to set up Qdrant if not running
-npx -y @rune-mcp/latest
+# Check container status
+docker logs rune --tail 50
+
+# Verify Qdrant is running
+curl http://localhost:6333/
+# Should return: {"title":"qdrant - vector search engine","version":"1.15.4",...}
 ```
 
 ## 📦 Installation & Setup
 
 ### For Claude Desktop
 
-1. **Start Rune container:**
-
-```bash
-docker run -d --name rune -v ~/Projects:/workspace:ro ghcr.io/rune-mcp/server:latest
-```
-
-1. **Add to Claude Desktop configuration:**
+Add to Claude Desktop configuration:
 
 **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`  
 **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
@@ -45,32 +51,58 @@ docker run -d --name rune -v ~/Projects:/workspace:ro ghcr.io/rune-mcp/server:la
   "mcpServers": {
     "rune": {
       "command": "docker",
-      "args": ["exec", "-i", "rune", "node", "/app/dist/index.js"],
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-v",
+        "${HOME}/Projects:/workspace:ro",
+        "-v",
+        "${HOME}/.rune:/data",
+        "rune-mcp:latest",
+        "node",
+        "/app/dist/index.js"
+      ],
       "env": {}
     }
   }
 }
 ```
 
-1. **Restart Claude Desktop** to connect to Rune
+**Note**: The container will start automatically when Claude Desktop connects.
+Use `${HOME}` for cross-platform compatibility.
+
+**Restart Claude Desktop** to activate Rune
 
 ### For Claude Code
 
-Add to `.mcp.json` in your project root:
+Create or edit `.claude/mcp.json` in your project root:
 
 ```json
 {
-  "mcp": {
-    "servers": {
-      "rune": {
-        "command": "docker",
-        "args": ["exec", "-i", "rune", "node", "/app/dist/index.js"],
-        "env": {}
-      }
+  "mcpServers": {
+    "rune": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-v",
+        "${PWD}:/workspace:ro",
+        "-v",
+        "${HOME}/.rune:/data",
+        "rune-mcp:latest",
+        "node",
+        "/app/dist/index.js"
+      ],
+      "env": {}
     }
   }
 }
 ```
+
+**Note**: The container starts automatically when Claude Code connects. It
+indexes your current project directory.
 
 ### For VS Code with GitHub Copilot
 
@@ -81,7 +113,18 @@ Add to `.vscode/settings.json`:
   "github.copilot.mcp.servers": {
     "rune": {
       "command": "docker",
-      "args": ["exec", "-i", "rune", "node", "/app/dist/index.js"]
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-v",
+        "${workspaceFolder}:/workspace:ro",
+        "-v",
+        "${HOME}/.rune:/data",
+        "rune-mcp:latest",
+        "node",
+        "/app/dist/index.js"
+      ]
     }
   }
 }
@@ -96,7 +139,18 @@ Add to `.cursor/mcp.json`:
   "servers": {
     "rune": {
       "command": "docker",
-      "args": ["exec", "-i", "rune", "node", "/app/dist/index.js"]
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-v",
+        "${workspaceFolder}:/workspace:ro",
+        "-v",
+        "${HOME}/.rune:/data",
+        "rune-mcp:latest",
+        "node",
+        "/app/dist/index.js"
+      ]
     }
   }
 }
@@ -109,7 +163,18 @@ Create `.continue/mcpServers/rune.json`:
 ```json
 {
   "command": "docker",
-  "args": ["exec", "-i", "rune", "node", "/app/dist/index.js"],
+  "args": [
+    "run",
+    "--rm",
+    "-i",
+    "-v",
+    "${workspaceFolder}:/workspace:ro",
+    "-v",
+    "${HOME}/.rune:/data",
+    "rune-mcp:latest",
+    "node",
+    "/app/dist/index.js"
+  ],
   "transport": "stdio"
 }
 ```
@@ -123,7 +188,18 @@ Add to `~/.codeium/windsurf/mcp_config.json`:
   "mcpServers": {
     "rune": {
       "command": "docker",
-      "args": ["exec", "-i", "rune", "node", "/app/dist/index.js"]
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-v",
+        "${HOME}/Projects:/workspace:ro",
+        "-v",
+        "${HOME}/.rune:/data",
+        "rune-mcp:latest",
+        "node",
+        "/app/dist/index.js"
+      ]
     }
   }
 }
@@ -153,7 +229,7 @@ docker run -d \
   -v /path/to/project2:/workspace/project2:ro \
   -v ~/.rune:/data \
   -e RUNE_INDEXING_THREADS=8 \
-  ghcr.io/rune-mcp/server:latest
+  rune-mcp:latest
 ```
 
 ### Using External Qdrant
@@ -163,7 +239,7 @@ docker run -d \
   --name rune \
   -v ~/Projects:/workspace:ro \
   -e QDRANT_URL=http://your-qdrant:6334 \
-  ghcr.io/rune-mcp/server:latest
+  rune-mcp:latest
 ```
 
 ### Docker Compose
@@ -171,7 +247,8 @@ docker run -d \
 ```yaml
 services:
   rune:
-    image: ghcr.io/rune-mcp/server:latest
+    build: .
+    image: rune-mcp:latest
     container_name: rune
     volumes:
       - ${HOME}/Projects:/workspace:ro
@@ -283,7 +360,7 @@ docker stop rune && docker rm rune
 rm -rf ~/.rune
 
 # Start fresh
-docker run -d --name rune -v ~/Projects:/workspace:ro ghcr.io/rune-mcp/server:latest
+docker run -d --name rune -v ~/Projects:/workspace:ro rune-mcp:latest
 ```
 
 ### Common Issues

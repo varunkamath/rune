@@ -105,14 +105,16 @@ impl RuneEngine {
 
     /// Start the engine (begins file watching and indexing)
     pub async fn start(&mut self) -> Result<()> {
-        info!("Starting Rune engine");
+        info!("[ENGINE START] Starting Rune engine - will trigger initial indexing");
 
         // Start file watcher
         self.indexer.start_watching().await?;
 
         // Initial index of workspace
+        info!("[ENGINE START] Triggering initial workspace indexing");
         self.indexer.index_workspaces().await?;
 
+        info!("[ENGINE START] Engine started successfully");
         Ok(())
     }
 

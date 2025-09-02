@@ -1,12 +1,53 @@
 #!/command/with-contenv sh
 # S6 service definition for Qdrant
 
-# Ensure data directory exists
-mkdir -p /data/qdrant
+# Enable debug output
+set -x
 
-# Start Qdrant with proper user permissions
+# Log startup
+echo "[$(date)] Starting Qdrant service..."
+
+# Ensure data directory exists with correct permissions
+mkdir -p /data/qdrant /data/qdrant/snapshots /data/qdrant/storage
+chown -R rune:rune /data/qdrant
+
+# Check if Qdrant binary exists
+if [ ! -f /usr/local/bin/qdrant ]; then
+    echo "[$(date)] ERROR: Qdrant binary not found at /usr/local/bin/qdrant"
+    exit 1
+fi
+
+# Create Qdrant config directory
+mkdir -p /data/qdrant/config
+cat > /data/qdrant/config/production.yaml <<EOF
+log_level: INFO
+storage:
+  storage_path: /data/qdrant/storage
+  snapshots_path: /data/qdrant/snapshots
+  on_disk_payload: true
+service:
+  http_port: 6333
+  grpc_port: 6334
+  host: 0.0.0.0
+EOF
+
+chown -R rune:rune /data/qdrant/config
+
+# Log binary permissions
+ls -la /usr/local/bin/qdrant
+
+# Start Qdrant (already running as rune user)
+echo "[$(date)] Executing Qdrant with storage at /data/qdrant"
+
+# Set environment variables for Qdrant
+export QDRANT__STORAGE__STORAGE_PATH=/data/qdrant/storage
+export QDRANT__STORAGE__SNAPSHOTS_PATH=/data/qdrant/snapshots
+export QDRANT__SERVICE__HTTP_PORT=6333
+export QDRANT__SERVICE__GRPC_PORT=6334
+export QDRANT__LOG_LEVEL=INFO
+
+# Change to Qdrant directory (where config is expected)
+cd /data/qdrant
+
 exec 2>&1
-exec s6-setuidgid rune \
-    /usr/local/bin/qdrant \
-    --storage-path /data/qdrant \
-    --log-level info
+exec /usr/local/bin/qdrant

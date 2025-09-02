@@ -1,21 +1,57 @@
 #!/command/with-contenv sh
 # S6 service definition for Rune MCP Server
 
+# Enable debug output
+set -x
+
+# Log startup
+echo "[$(date)] Starting Rune MCP Server service..."
+
+# Check environment variables
+echo "[$(date)] Environment check:"
+echo "  RUNE_WORKSPACE=$RUNE_WORKSPACE"
+echo "  RUNE_CACHE_DIR=$RUNE_CACHE_DIR"
+echo "  QDRANT_URL=$QDRANT_URL"
+echo "  NODE_ENV=$NODE_ENV"
+
+# Check if Node.js is available
+which node || (echo "[$(date)] ERROR: Node.js not found" && exit 1)
+node --version
+
+# Check if the app files exist
+if [ ! -f /app/dist/index.js ]; then
+    echo "[$(date)] ERROR: /app/dist/index.js not found"
+    ls -la /app/
+    ls -la /app/dist/ 2>/dev/null || echo "dist directory not found"
+    exit 1
+fi
+
+# Check if native module exists
+if [ ! -f /app/rune.node ]; then
+    echo "[$(date)] ERROR: /app/rune.node not found"
+    ls -la /app/*.node 2>/dev/null || echo "No .node files found"
+    exit 1
+fi
+
 # Wait for Qdrant to be healthy before starting Rune
-echo "Waiting for Qdrant to be ready..."
-for i in $(seq 1 30); do
-    if curl -sf http://localhost:6334/health > /dev/null 2>&1; then
-        echo "Qdrant is ready!"
+echo "[$(date)] Waiting for Qdrant to be ready..."
+for i in $(seq 1 60); do
+    # Check if Qdrant is responding on HTTP port (root endpoint returns version info)
+    if curl -sf http://localhost:6333/ > /dev/null 2>&1; then
+        echo "[$(date)] Qdrant HTTP is ready!"
         break
     fi
-    if [ $i -eq 30 ]; then
-        echo "ERROR: Qdrant failed to start after 30 seconds"
+    if [ $i -eq 60 ]; then
+        echo "[$(date)] ERROR: Qdrant failed to start after 60 seconds"
+        echo "[$(date)] Checking Qdrant process..."
+        pgrep -fl qdrant || echo "Qdrant process not found"
         exit 1
     fi
+    echo "[$(date)] Waiting for Qdrant... ($i/60)"
     sleep 1
 done
 
-# Start Rune MCP Server
+# Start Rune MCP Server (already running as rune user)
+echo "[$(date)] Starting Node.js MCP server..."
 exec 2>&1
-exec s6-setuidgid rune \
-    node /app/dist/index.js
+exec node /app/dist/index.js

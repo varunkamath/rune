@@ -1,0 +1,23 @@
+# Docker Compose for Qdrant (for local Rune development)
+# v1.15.4 - Using named volume to avoid FUSE filesystem issues on macOS
+
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.15.4
+    container_name: qdrant-local
+    restart: always
+    ports:
+      - "6333:6333"  # REST API port (for health checks)
+      - "6334:6334"  # gRPC port (used by Rune)
+    volumes:
+      - qdrant-storage:/qdrant/storage  # Named volume to avoid FUSE issues
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__LOG_LEVEL=INFO
+    # Cannot use native healthcheck - curl not available in container
+    # Use REST API endpoint http://localhost:6333/readyz to check health
+
+volumes:
+  qdrant-storage:
+    driver: local
