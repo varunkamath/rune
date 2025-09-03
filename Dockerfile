@@ -141,6 +141,7 @@ USER rune
 # Environment variables
 ENV NODE_ENV=production \
     QDRANT_URL=http://localhost:6334 \
+    QDRANT__SERVICE__HOST=0.0.0.0 \
     RUNE_WORKSPACE=/workspace \
     RUNE_CACHE_DIR=/data/cache \
     QDRANT_STORAGE=/data/qdrant

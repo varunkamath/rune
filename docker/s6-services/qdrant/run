@@ -44,6 +44,7 @@ export QDRANT__STORAGE__STORAGE_PATH=/data/qdrant/storage
 export QDRANT__STORAGE__SNAPSHOTS_PATH=/data/qdrant/snapshots
 export QDRANT__SERVICE__HTTP_PORT=6333
 export QDRANT__SERVICE__GRPC_PORT=6334
+export QDRANT__SERVICE__HOST=0.0.0.0
 export QDRANT__LOG_LEVEL=INFO
 
 # Change to Qdrant directory (where config is expected)
