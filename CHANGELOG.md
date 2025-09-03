@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.0.2](https://github.com/varunkamath/rune/compare/v1.0.1...v1.0.2) (2025-09-03)
+
+### 🐛 Bug Fixes
+
+* **ci:** Include root Cargo.toml ([47106cc](https://github.com/varunkamath/rune/commit/47106cc93932c5a7d0baaacb75accb59988049b3))
+
 ## [1.0.1](https://github.com/varunkamath/rune/compare/v1.0.0...v1.0.1) (2025-09-03)
 
 ### 🐛 Bug Fixes
