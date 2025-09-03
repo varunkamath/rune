@@ -152,69 +152,87 @@ mod tests {
     #[tokio::test]
     async fn test_embedding_pipeline_initialization() {
         // Disable semantic to ensure pipeline handles it gracefully
-        unsafe { std::env::set_var("RUNE_ENABLE_SEMANTIC", "false"); }
-        
+        unsafe {
+            std::env::set_var("RUNE_ENABLE_SEMANTIC", "false");
+        }
+
         let config = create_test_config();
         let pipeline = EmbeddingPipeline::new(config).await.unwrap();
-        
+
         // Pipeline should be created but not available without Qdrant
         assert!(!pipeline.is_available());
-        
-        unsafe { std::env::remove_var("RUNE_ENABLE_SEMANTIC"); }
+
+        unsafe {
+            std::env::remove_var("RUNE_ENABLE_SEMANTIC");
+        }
     }
 
     #[tokio::test]
     async fn test_process_file_without_qdrant() {
-        unsafe { std::env::set_var("RUNE_ENABLE_SEMANTIC", "false"); }
-        
+        unsafe {
+            std::env::set_var("RUNE_ENABLE_SEMANTIC", "false");
+        }
+
         let config = create_test_config();
         let pipeline = EmbeddingPipeline::new(config).await.unwrap();
-        
+
         let code = r#"
         fn main() {
             println!("Hello, world!");
         }
         "#;
-        
+
         // Should handle gracefully without Qdrant
         pipeline.process_file("test.rs", code).await.unwrap();
-        
-        unsafe { std::env::remove_var("RUNE_ENABLE_SEMANTIC"); }
+
+        unsafe {
+            std::env::remove_var("RUNE_ENABLE_SEMANTIC");
+        }
     }
 
     #[tokio::test]
     async fn test_search_without_qdrant() {
-        unsafe { std::env::set_var("RUNE_ENABLE_SEMANTIC", "false"); }
-        
+        unsafe {
+            std::env::set_var("RUNE_ENABLE_SEMANTIC", "false");
+        }
+
         let config = create_test_config();
         let pipeline = EmbeddingPipeline::new(config).await.unwrap();
-        
+
         let results = pipeline.search("test query", 10).await.unwrap();
         assert_eq!(results.len(), 0);
-        
-        unsafe { std::env::remove_var("RUNE_ENABLE_SEMANTIC"); }
+
+        unsafe {
+            std::env::remove_var("RUNE_ENABLE_SEMANTIC");
+        }
     }
 
     #[tokio::test]
     async fn test_clear_without_qdrant() {
-        unsafe { std::env::set_var("RUNE_ENABLE_SEMANTIC", "false"); }
-        
+        unsafe {
+            std::env::set_var("RUNE_ENABLE_SEMANTIC", "false");
+        }
+
         let config = create_test_config();
         let pipeline = EmbeddingPipeline::new(config).await.unwrap();
-        
+
         // Should not panic
         pipeline.clear().await.unwrap();
-        
-        unsafe { std::env::remove_var("RUNE_ENABLE_SEMANTIC"); }
+
+        unsafe {
+            std::env::remove_var("RUNE_ENABLE_SEMANTIC");
+        }
     }
 
     #[tokio::test]
     async fn test_process_multiple_languages() {
-        unsafe { std::env::set_var("RUNE_ENABLE_SEMANTIC", "false"); }
-        
+        unsafe {
+            std::env::set_var("RUNE_ENABLE_SEMANTIC", "false");
+        }
+
         let config = create_test_config();
         let pipeline = EmbeddingPipeline::new(config).await.unwrap();
-        
+
         // Test Rust code
         let rust_code = r#"
         struct Person {
@@ -223,7 +241,7 @@ mod tests {
         }
         "#;
         pipeline.process_file("person.rs", rust_code).await.unwrap();
-        
+
         // Test Python code
         let python_code = r#"
         class Person:
@@ -231,8 +249,11 @@ mod tests {
                 self.name = name
                 self.age = age
         "#;
-        pipeline.process_file("person.py", python_code).await.unwrap();
-        
+        pipeline
+            .process_file("person.py", python_code)
+            .await
+            .unwrap();
+
         // Test JavaScript code
         let js_code = r#"
         class Person {
@@ -243,30 +264,38 @@ mod tests {
         }
         "#;
         pipeline.process_file("person.js", js_code).await.unwrap();
-        
-        unsafe { std::env::remove_var("RUNE_ENABLE_SEMANTIC"); }
+
+        unsafe {
+            std::env::remove_var("RUNE_ENABLE_SEMANTIC");
+        }
     }
 
     #[tokio::test]
     async fn test_process_empty_file() {
-        unsafe { std::env::set_var("RUNE_ENABLE_SEMANTIC", "false"); }
-        
+        unsafe {
+            std::env::set_var("RUNE_ENABLE_SEMANTIC", "false");
+        }
+
         let config = create_test_config();
         let pipeline = EmbeddingPipeline::new(config).await.unwrap();
-        
+
         // Should handle empty content gracefully
         pipeline.process_file("empty.rs", "").await.unwrap();
-        
-        unsafe { std::env::remove_var("RUNE_ENABLE_SEMANTIC"); }
+
+        unsafe {
+            std::env::remove_var("RUNE_ENABLE_SEMANTIC");
+        }
     }
 
     #[tokio::test]
     async fn test_process_large_file() {
-        unsafe { std::env::set_var("RUNE_ENABLE_SEMANTIC", "false"); }
-        
+        unsafe {
+            std::env::set_var("RUNE_ENABLE_SEMANTIC", "false");
+        }
+
         let config = create_test_config();
         let pipeline = EmbeddingPipeline::new(config).await.unwrap();
-        
+
         // Generate a large file content
         let mut large_content = String::new();
         for i in 0..100 {
@@ -274,20 +303,27 @@ mod tests {
                 "fn function_{i}() {{\n    println!(\"Function {i}\");\n}}\n\n"
             ));
         }
-        
+
         // Should handle large files
-        pipeline.process_file("large.rs", &large_content).await.unwrap();
-        
-        unsafe { std::env::remove_var("RUNE_ENABLE_SEMANTIC"); }
+        pipeline
+            .process_file("large.rs", &large_content)
+            .await
+            .unwrap();
+
+        unsafe {
+            std::env::remove_var("RUNE_ENABLE_SEMANTIC");
+        }
     }
 
     #[tokio::test]
     async fn test_search_with_special_characters() {
-        unsafe { std::env::set_var("RUNE_ENABLE_SEMANTIC", "false"); }
-        
+        unsafe {
+            std::env::set_var("RUNE_ENABLE_SEMANTIC", "false");
+        }
+
         let config = create_test_config();
         let pipeline = EmbeddingPipeline::new(config).await.unwrap();
-        
+
         // Test queries with special characters
         let queries = vec![
             "async/await",
@@ -296,12 +332,14 @@ mod tests {
             "impl<'a> Iterator",
             "fn() -> ()",
         ];
-        
+
         for query in queries {
             let results = pipeline.search(query, 5).await.unwrap();
             assert_eq!(results.len(), 0); // Without Qdrant, should return empty
         }
-        
-        unsafe { std::env::remove_var("RUNE_ENABLE_SEMANTIC"); }
+
+        unsafe {
+            std::env::remove_var("RUNE_ENABLE_SEMANTIC");
+        }
     }
 }

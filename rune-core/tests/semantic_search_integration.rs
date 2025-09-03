@@ -1,7 +1,6 @@
 use rune_core::{Config, RuneEngine};
 use std::path::PathBuf;
 use tempfile::tempdir;
-use tokio;
 
 /// Helper to check if Qdrant is available
 async fn is_qdrant_available() -> bool {
@@ -30,8 +29,8 @@ pub struct Cache<K, V> {
     max_size: usize,
 }
 
-impl<K, V> Cache<K, V> 
-where 
+impl<K, V> Cache<K, V>
+where
     K: std::hash::Hash + Eq,
     V: Clone,
 {
@@ -66,36 +65,36 @@ import bcrypt
 
 class AuthenticationService:
     """Handles user authentication and password management"""
-    
+
     def __init__(self):
         self.users = {}
         self.sessions = {}
-    
+
     def hash_password(self, password: str) -> str:
         """Hash a password using bcrypt"""
         salt = bcrypt.gensalt()
         hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
         return hashed.decode('utf-8')
-    
+
     def verify_password(self, password: str, hashed: str) -> bool:
         """Verify a password against its hash"""
         return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
-    
+
     def create_user(self, username: str, password: str):
         """Create a new user with hashed password"""
         if username in self.users:
             raise ValueError("User already exists")
-        
+
         self.users[username] = {
             'password_hash': self.hash_password(password),
             'created_at': datetime.now()
         }
-    
+
     def authenticate(self, username: str, password: str) -> bool:
         """Authenticate a user"""
         if username not in self.users:
             return False
-        
+
         user = self.users[username]
         return self.verify_password(password, user['password_hash'])
 "#;
@@ -290,8 +289,11 @@ async fn test_semantic_search_with_real_qdrant() {
     };
 
     let cache_results = engine.search().search(cache_query).await.unwrap();
-    assert!(cache_results.total_matches > 0, "Should find cache-related results");
-    
+    assert!(
+        cache_results.total_matches > 0,
+        "Should find cache-related results"
+    );
+
     // The cache.rs file should be in the results
     let has_cache_file = cache_results
         .results
@@ -310,8 +312,11 @@ async fn test_semantic_search_with_real_qdrant() {
     };
 
     let auth_results = engine.search().search(auth_query).await.unwrap();
-    assert!(auth_results.total_matches > 0, "Should find auth-related results");
-    
+    assert!(
+        auth_results.total_matches > 0,
+        "Should find auth-related results"
+    );
+
     // The auth.py file should be in the results
     let has_auth_file = auth_results
         .results
@@ -330,7 +335,10 @@ async fn test_semantic_search_with_real_qdrant() {
     };
 
     let db_results = engine.search().search(db_query).await.unwrap();
-    assert!(db_results.total_matches > 0, "Should find database-related results");
+    assert!(
+        db_results.total_matches > 0,
+        "Should find database-related results"
+    );
 
     // Test 4: Search for HTTP/networking concepts
     let http_query = rune_core::search::SearchQuery {
@@ -343,7 +351,10 @@ async fn test_semantic_search_with_real_qdrant() {
     };
 
     let http_results = engine.search().search(http_query).await.unwrap();
-    assert!(http_results.total_matches > 0, "Should find HTTP-related results");
+    assert!(
+        http_results.total_matches > 0,
+        "Should find HTTP-related results"
+    );
 
     // Test 5: Cross-language semantic search
     let general_query = rune_core::search::SearchQuery {
@@ -356,7 +367,10 @@ async fn test_semantic_search_with_real_qdrant() {
     };
 
     let general_results = engine.search().search(general_query).await.unwrap();
-    assert!(general_results.total_matches > 0, "Should find error handling results");
+    assert!(
+        general_results.total_matches > 0,
+        "Should find error handling results"
+    );
 
     // Test 6: File pattern filtering with semantic search
     let rust_only_query = rune_core::search::SearchQuery {
@@ -369,7 +383,7 @@ async fn test_semantic_search_with_real_qdrant() {
     };
 
     let rust_results = engine.search().search(rust_only_query).await.unwrap();
-    
+
     // All results should be Rust files
     for result in &rust_results.results {
         assert!(
@@ -397,7 +411,7 @@ async fn test_semantic_search_without_qdrant() {
         cache_dir: tempdir().unwrap().path().to_path_buf(),
         max_file_size: 10 * 1024 * 1024,
         indexing_threads: 1,
-        enable_semantic: false,  // Disable semantic to avoid Qdrant
+        enable_semantic: false, // Disable semantic to avoid Qdrant
         languages: vec!["rust".to_string()],
     };
 
@@ -422,7 +436,10 @@ async fn test_semantic_search_without_qdrant() {
     };
 
     let results = engine.search().search(query).await.unwrap();
-    assert_eq!(results.total_matches, 0, "Should return 0 results when semantic is disabled");
+    assert_eq!(
+        results.total_matches, 0,
+        "Should return 0 results when semantic is disabled"
+    );
     assert_eq!(results.results.len(), 0, "Results should be empty");
 
     // Clean up
@@ -482,7 +499,10 @@ async fn test_hybrid_search_mode() {
     };
 
     let hybrid_results = engine.search().search(hybrid_query).await.unwrap();
-    assert!(hybrid_results.total_matches > 0, "Hybrid search should find results");
+    assert!(
+        hybrid_results.total_matches > 0,
+        "Hybrid search should find results"
+    );
 
     // Should find both literal matches and semantically similar code
     let has_literal_match = hybrid_results
@@ -567,12 +587,11 @@ async fn test_semantic_search_pagination() {
     };
 
     let page2_results = engine.search().search(page2_query).await.unwrap();
-    
+
     // Results should be different from page 1
     if !page2_results.results.is_empty() && !page1_results.results.is_empty() {
         assert_ne!(
-            page1_results.results[0].file_path,
-            page2_results.results[0].file_path,
+            page1_results.results[0].file_path, page2_results.results[0].file_path,
             "Different pages should have different results"
         );
     }

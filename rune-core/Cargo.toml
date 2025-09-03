@@ -117,4 +117,3 @@ harness = false
 [[bench]]
 name = "simple_storage_bench"
 harness = false
-

@@ -478,15 +478,19 @@ mod tests {
     #[tokio::test]
     async fn test_qdrant_manager_new_with_disabled_semantic() {
         // Set env var to disable semantic
-        unsafe { std::env::set_var("RUNE_ENABLE_SEMANTIC", "false"); }
-        
+        unsafe {
+            std::env::set_var("RUNE_ENABLE_SEMANTIC", "false");
+        }
+
         let config = create_test_config();
         let manager = QdrantManager::new(config).await.unwrap();
-        
+
         assert!(!manager.is_available());
-        
+
         // Clean up
-        unsafe { std::env::remove_var("RUNE_ENABLE_SEMANTIC"); }
+        unsafe {
+            std::env::remove_var("RUNE_ENABLE_SEMANTIC");
+        }
     }
 
     #[tokio::test]
@@ -496,17 +500,17 @@ mod tests {
             std::env::set_var("QDRANT_URL", "http://127.0.0.1:99999");
             std::env::set_var("RUNE_ENABLE_SEMANTIC", "true");
         }
-        
+
         let config = create_test_config();
         let manager = QdrantManager::new(config).await.unwrap();
-        
+
         // Should create manager but client should be None
         // Note: This may succeed if Qdrant is running on default ports
         // The test is checking that we handle missing Qdrant gracefully
         // assert!(!manager.is_available());
         // Just check that manager was created without panic
         let _ = manager.is_available();
-        
+
         // Clean up
         unsafe {
             std::env::remove_var("QDRANT_URL");
@@ -516,11 +520,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_store_embeddings_without_client() {
-        unsafe { std::env::set_var("RUNE_ENABLE_SEMANTIC", "false"); }
-        
+        unsafe {
+            std::env::set_var("RUNE_ENABLE_SEMANTIC", "false");
+        }
+
         let config = create_test_config();
         let manager = QdrantManager::new(config).await.unwrap();
-        
+
         // Use proper UUID format and 384-dimensional vector
         let chunks = vec![EmbeddedChunk {
             id: "550e8400-e29b-41d4-a716-446655440000".to_string(),
@@ -531,40 +537,50 @@ mod tests {
             end_line: 10,
             language: Some("rust".to_string()),
         }];
-        
+
         // Should not panic even without client
         manager.store_embeddings(chunks).await.unwrap();
-        
-        unsafe { std::env::remove_var("RUNE_ENABLE_SEMANTIC"); }
+
+        unsafe {
+            std::env::remove_var("RUNE_ENABLE_SEMANTIC");
+        }
     }
 
     #[tokio::test]
     async fn test_search_without_client() {
-        unsafe { std::env::set_var("RUNE_ENABLE_SEMANTIC", "false"); }
-        
+        unsafe {
+            std::env::set_var("RUNE_ENABLE_SEMANTIC", "false");
+        }
+
         let config = create_test_config();
         let manager = QdrantManager::new(config).await.unwrap();
-        
+
         // Use 384-dimensional vector to match expected dimensions
         let query_embedding = vec![0.1; 384];
         let results = manager.search(query_embedding, 10, None).await.unwrap();
-        
+
         assert_eq!(results.len(), 0);
-        
-        unsafe { std::env::remove_var("RUNE_ENABLE_SEMANTIC"); }
+
+        unsafe {
+            std::env::remove_var("RUNE_ENABLE_SEMANTIC");
+        }
     }
 
     #[tokio::test]
     async fn test_clear_collection_without_client() {
-        unsafe { std::env::set_var("RUNE_ENABLE_SEMANTIC", "false"); }
-        
+        unsafe {
+            std::env::set_var("RUNE_ENABLE_SEMANTIC", "false");
+        }
+
         let config = create_test_config();
         let manager = QdrantManager::new(config).await.unwrap();
-        
+
         // Should not panic
         manager.clear_collection().await.unwrap();
-        
-        unsafe { std::env::remove_var("RUNE_ENABLE_SEMANTIC"); }
+
+        unsafe {
+            std::env::remove_var("RUNE_ENABLE_SEMANTIC");
+        }
     }
 
     #[test]
@@ -578,7 +594,7 @@ mod tests {
             end_line: 3,
             language: Some("rust".to_string()),
         };
-        
+
         assert_eq!(chunk.id, "unique_id");
         assert_eq!(chunk.embedding.len(), 384);
         assert_eq!(chunk.start_line, 1);
@@ -596,7 +612,7 @@ mod tests {
             language: Some("rust".to_string()),
             score: 0.95,
         };
-        
+
         assert_eq!(result.file_path, "src/lib.rs");
         assert_eq!(result.start_line, 10);
         assert_eq!(result.end_line, 12);
@@ -609,14 +625,15 @@ mod tests {
     async fn test_connect_with_retry_logic() {
         // This test only runs when semantic feature is enabled
         use super::QdrantManager;
-        
+
         // Test with a bad URL - should fail after retries
         let result = QdrantManager::connect_with_retry(
             "http://127.0.0.1:99999",
             "test",
-            1  // Only 1 retry for speed
-        ).await;
-        
+            1, // Only 1 retry for speed
+        )
+        .await;
+
         assert!(result.is_none());
     }
 
@@ -625,7 +642,7 @@ mod tests {
         // Collection names should be deterministic based on workspace
         let workspace1 = "test_workspace_1";
         let workspace2 = "test_workspace_2";
-        
+
         let hash1 = blake3::hash(workspace1.as_bytes())
             .to_hex()
             .chars()
@@ -636,7 +653,7 @@ mod tests {
             .chars()
             .take(16)
             .collect::<String>();
-        
+
         assert_ne!(hash1, hash2);
         assert_eq!(hash1.len(), 16);
         assert_eq!(hash2.len(), 16);

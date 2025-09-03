@@ -52,9 +52,9 @@ test_semantic() {
     echo "Query: \"$query\""
     echo "Expected: $expected"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    
+
     local json="{\"jsonrpc\":\"2.0\",\"method\":\"tools/call\",\"params\":{\"name\":\"search\",\"arguments\":{\"query\":\"$query\",\"mode\":\"semantic\",\"limit\":5}},\"id\":1}"
-    
+
     echo "$json" | docker exec -i $CONTAINER_ID node /app/dist/index.js 2>/dev/null | \
         python3 -c "
 import sys, json
@@ -63,16 +63,16 @@ try:
     data = json.load(sys.stdin)
     if 'result' in data and 'content' in data['result']:
         result = json.loads(data['result']['content'][0]['text'])
-        
+
         print(f\"✓ Found {result['total_matches']} matches in {result['search_time_ms']}ms\")
         print(\"\\nTop results:\")
-        
+
         for i, r in enumerate(result['results'][:5], 1):
             filename = r['file_path'].split('/')[-1]
             first_line = r['content'].split('\\\\n')[0][:80]
             print(f\"  {i}. {filename}:{r['line_number']} (score: {r['score']:.4f})\")
             print(f\"     {first_line}...\")
-            
+
         expected_file = '$expected'
         if expected_file != 'multiple':
             found_expected = any(expected_file in r['file_path'] for r in result['results'])
@@ -80,10 +80,10 @@ try:
                 print(f\"\\n✅ PASS: Found expected file '{expected_file}' in results\")
             else:
                 print(f\"\\n⚠️  WARNING: Expected file '{expected_file}' not in top results\")
-            
+
     else:
         print(f\"✗ Error: {data.get('error', {}).get('message', 'Unknown error')}\")
-        
+
 except Exception as e:
     print(f'✗ Parse error: {e}')
 "
