@@ -75,6 +75,8 @@
           "package.json",
           "pnpm-lock.yaml",
           "mcp-server/package.json",
+          "Cargo.toml",
+          "Cargo.lock",
           "rune-core/Cargo.toml",
           "rune-bridge/Cargo.toml",
           "VERSION"
