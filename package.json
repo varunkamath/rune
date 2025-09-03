@@ -16,7 +16,7 @@
     "inspect": "cd mcp-server && pnpm run inspect",
     "inspect:alt": "cd mcp-server && pnpm run inspect:alt",
     "inspect:kill": "lsof -ti :6277,6274,7277,7274 | xargs kill -9 2>/dev/null || true",
-    "test": "cargo test && pnpm -r test",
+    "test": "RUST_TEST_THREADS=1 cargo test && pnpm -r test",
     "bench": "cargo bench -p rune-core",
     "bench:storage": "cargo bench -p rune-core --bench storage_bench",
     "bench:search": "cargo bench -p rune-core --bench search_bench",
