@@ -92,6 +92,9 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Install cargo-edit
+        run: cargo install cargo-edit
+
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
