@@ -63,7 +63,7 @@ indexmap = { workspace = true }
 walkdir = "2.5"
 ignore = "0.4"  # gitignore-aware file traversal
 blake3 = "1.5"  # fast hashing
-uuid = { version = "1.11", features = ["v4"] }  # UUID generation
+uuid = { version = "1.0.0"] }  # UUID generation
 lru = "0.16"
 bytes = "1.7"
 futures = "0.3"
@@ -71,15 +71,15 @@ crossbeam-channel = "0.5"
 num_cpus = "1.16"
 
 # HTTP client for model downloads
-reqwest = { version = "0.12", features = ["json", "stream"] }
+reqwest = { version = "1.0.0"] }
 
 # Vector database
-qdrant-client = { version = "1.12", optional = true }
+qdrant-client = { version = "1.0.0", optional = true }
 
 # Embedding support
-ort = { version = "2.0.0-rc.10", default-features = false, features = ["std", "download-binaries", "copy-dylibs", "ndarray"], optional = true }
-tokenizers = { version = "0.22", default-features = false, features = ["onig"], optional = true }
-dirs = { version = "6.0", optional = true }
+ort = { version = "1.0.0"], optional = true }
+tokenizers = { version = "1.0.0"], optional = true }
+dirs = { version = "1.0.0", optional = true }
 
 [dev-dependencies]
 mockall = { workspace = true }

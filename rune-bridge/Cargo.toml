@@ -14,7 +14,7 @@ crate-type = ["cdylib"]
 rune-core = { path = "../rune-core" }
 
 # NAPI-RS for Node.js bindings
-napi = { version = "3", features = ["async", "tokio_rt", "napi9", "serde-json"] }
+napi = { version = "1.0.0"] }
 napi-derive = "3"
 
 # Async runtime
