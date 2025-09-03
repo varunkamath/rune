@@ -27,7 +27,7 @@ func AppendToFile(filepath string, content string) error {
         return err
     }
     defer file.Close()
-    
+
     _, err = file.WriteString(content)
     return err
 }

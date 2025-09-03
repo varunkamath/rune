@@ -32,18 +32,18 @@ func NewHTTPClient(baseURL string, timeout time.Duration) *HTTPClient {
 // GET performs an HTTP GET request with automatic retries
 func (c *HTTPClient) GET(endpoint string, headers map[string]string) (*Response, error) {
     url := c.baseURL + endpoint
-    
+
     for attempt := 0; attempt <= c.maxRetries; attempt++ {
         req, err := http.NewRequest("GET", url, nil)
         if err != nil {
             return nil, fmt.Errorf("creating request: %w", err)
         }
-        
+
         // Add headers
         for key, value := range headers {
             req.Header.Set(key, value)
         }
-        
+
         resp, err := c.client.Do(req)
         if err != nil {
             if attempt < c.maxRetries {
@@ -52,33 +52,33 @@ func (c *HTTPClient) GET(endpoint string, headers map[string]string) (*Response,
             }
             return nil, fmt.Errorf("request failed after %d attempts: %w", c.maxRetries, err)
         }
-        
+
         return c.parseResponse(resp)
     }
-    
+
     return nil, fmt.Errorf("max retries exceeded")
 }
 
 // POST sends JSON data to an endpoint
 func (c *HTTPClient) POST(endpoint string, data interface{}, headers map[string]string) (*Response, error) {
     url := c.baseURL + endpoint
-    
+
     jsonData, err := json.Marshal(data)
     if err != nil {
         return nil, fmt.Errorf("marshaling data: %w", err)
     }
-    
+
     for attempt := 0; attempt <= c.maxRetries; attempt++ {
         req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
         if err != nil {
             return nil, fmt.Errorf("creating request: %w", err)
         }
-        
+
         req.Header.Set("Content-Type", "application/json")
         for key, value := range headers {
             req.Header.Set(key, value)
         }
-        
+
         resp, err := c.client.Do(req)
         if err != nil {
             if attempt < c.maxRetries {
@@ -87,16 +87,16 @@ func (c *HTTPClient) POST(endpoint string, data interface{}, headers map[string]
             }
             return nil, fmt.Errorf("request failed after %d attempts: %w", c.maxRetries, err)
         }
-        
+
         if resp.StatusCode >= 500 && attempt < c.maxRetries {
             resp.Body.Close()
             time.Sleep(c.retryDelay * time.Duration(attempt+1))
             continue
         }
-        
+
         return c.parseResponse(resp)
     }
-    
+
     return nil, fmt.Errorf("max retries exceeded")
 }
 
@@ -110,12 +110,12 @@ type Response struct {
 // parseResponse reads and parses the HTTP response
 func (c *HTTPClient) parseResponse(resp *http.Response) (*Response, error) {
     defer resp.Body.Close()
-    
+
     body, err := ioutil.ReadAll(resp.Body)
     if err != nil {
         return nil, fmt.Errorf("reading response body: %w", err)
     }
-    
+
     return &Response{
         StatusCode: resp.StatusCode,
         Body:       body,

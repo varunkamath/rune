@@ -12,17 +12,17 @@ impl<T> Stack<T> {
     pub fn new() -> Self {
         Stack { items: Vec::new() }
     }
-    
+
     /// Push item onto the stack
     pub fn push(&mut self, item: T) {
         self.items.push(item);
     }
-    
+
     /// Pop item from the stack
     pub fn pop(&mut self) -> Option<T> {
         self.items.pop()
     }
-    
+
     /// Check if stack is empty
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
