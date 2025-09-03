@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.0.1](https://github.com/varunkamath/rune/compare/v1.0.0...v1.0.1) (2025-09-03)
+
+### 🐛 Bug Fixes
+
+* **ci:** Use cargo edit instead of sed ([f97b20c](https://github.com/varunkamath/rune/commit/f97b20cf0f9043b9c049c177cdccbf026b3ceee3))
+
 ## 1.0.0 (2025-09-03)
 
 ### ⚠ BREAKING CHANGES
