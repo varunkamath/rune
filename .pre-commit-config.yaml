@@ -57,7 +57,7 @@ repos:
         entry: pnpm exec prettier --write
         language: system
         types_or: [javascript, jsx, ts, tsx, json, yaml, markdown]
-        exclude: ^(dist/|target/|.*\.node|pnpm-lock\.yaml)$
+        exclude: ^(dist/|target/|.*\.node|pnpm-lock\.yaml|CHANGELOG\.md)$
         require_serial: true
 
       - id: eslint
@@ -83,7 +83,7 @@ repos:
     hooks:
       - id: markdownlint
         args: ["--fix"]
-        exclude: ^(CLAUDE\.md|MCP_IMPLEMENTATION_RESEARCH\.md)$
+        exclude: ^(CLAUDE\.md|MCP_IMPLEMENTATION_RESEARCH\.md|CHANGELOG\.md)$
 
   # YAML formatting
   - repo: https://github.com/adrienverge/yamllint

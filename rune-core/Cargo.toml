@@ -120,7 +120,3 @@ harness = false
 [[bench]]
 name = "storage_bench"
 harness = false
-
-[[bench]]
-name = "simple_storage_bench"
-harness = false

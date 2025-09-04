@@ -10,7 +10,12 @@ use std::sync::Arc;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::{Config, indexing::tantivy_indexer::TantivyIndexer, storage::StorageBackend};
+use crate::{
+    Config,
+    cache::{CacheConfig, MultiTierCache},
+    indexing::tantivy_indexer::TantivyIndexer,
+    storage::StorageBackend,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SearchMode {
@@ -65,12 +70,15 @@ pub enum MatchType {
     Symbol,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResponse {
     pub query: SearchQuery,
     pub results: Vec<SearchResult>,
     pub total_matches: usize,
     pub search_time_ms: u64,
+    /// Whether this response was served from cache
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub from_cache: Option<bool>,
 }
 
 pub struct SearchEngine {
@@ -83,6 +91,7 @@ pub struct SearchEngine {
     #[cfg(feature = "semantic")]
     semantic_searcher: semantic::SemanticSearcher,
     hybrid_searcher: hybrid::HybridSearcher,
+    cache: Arc<MultiTierCache>,
 }
 
 impl SearchEngine {
@@ -112,6 +121,13 @@ impl SearchEngine {
             semantic_searcher.clone(),
         );
 
+        // Initialize cache with default config
+        let cache_config = CacheConfig::default();
+        let cache = Arc::new(MultiTierCache::new(
+            cache_config,
+            Some(Arc::new(storage.clone())),
+        ));
+
         Ok(Self {
             config,
             storage,
@@ -122,12 +138,21 @@ impl SearchEngine {
             #[cfg(feature = "semantic")]
             semantic_searcher,
             hybrid_searcher,
+            cache,
         })
     }
 
     pub async fn search(&self, query: SearchQuery) -> Result<SearchResponse> {
         let start = std::time::Instant::now();
 
+        // Check cache first
+        if let Some(mut cached_response) = self.cache.get(&query).await {
+            cached_response.from_cache = Some(true);
+            tracing::debug!("Serving search from cache for query: {}", query.query);
+            return Ok(cached_response);
+        }
+
+        // Cache miss - perform actual search
         let results = match query.mode {
             SearchMode::Literal => self.literal_searcher.search(&query).await?,
             SearchMode::Regex => self.regex_searcher.search(&query).await?,
@@ -149,17 +174,44 @@ impl SearchEngine {
             .take(query.limit)
             .collect();
 
-        Ok(SearchResponse {
-            query,
+        let response = SearchResponse {
+            query: query.clone(),
             results,
             total_matches,
             search_time_ms: start.elapsed().as_millis() as u64,
-        })
+            from_cache: Some(false),
+        };
+
+        // Store in cache for future queries
+        if let Err(e) = self.cache.put(&query, response.clone()).await {
+            tracing::warn!("Failed to cache search result: {}", e);
+        }
+
+        Ok(response)
     }
 
     pub async fn reindex(&self) -> Result<()> {
+        // Clear cache when reindexing as results may change
+        self.cache.clear().await;
+        tracing::info!("Cleared search cache for reindexing");
+
         // Trigger reindexing
         Ok(())
+    }
+
+    /// Get cache metrics for monitoring
+    pub fn cache_metrics(&self) -> Arc<crate::cache::CacheMetrics> {
+        self.cache.metrics()
+    }
+
+    /// Clear the search cache
+    pub async fn clear_cache(&self) {
+        self.cache.clear().await;
+    }
+
+    /// Invalidate cache entries matching a pattern
+    pub async fn invalidate_cache_pattern(&self, pattern: &str) {
+        self.cache.invalidate_pattern(pattern).await;
     }
 }
 

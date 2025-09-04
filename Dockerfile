@@ -1,9 +1,21 @@
 # syntax=docker/dockerfile:1
-ARG NODE_VERSION=22
+ARG NODE_VERSION=24
 ARG RUST_VERSION=1.89
 
+# ============== Chef Stage: Install cargo-chef ==============
+FROM rust:${RUST_VERSION}-slim-trixie AS chef
+RUN cargo install cargo-chef --locked
+WORKDIR /build
+
+# ============== Planner Stage: Generate Recipe ==============
+FROM chef AS planner
+# Copy all project files (cargo chef will extract what it needs)
+COPY . .
+# Generate recipe for dependency caching
+RUN cargo chef prepare --recipe-path recipe.json
+
 # ============== Build Stage: Rust Components ==============
-FROM rust:${RUST_VERSION}-slim-bookworm AS rust-builder
+FROM chef AS rust-builder
 
 # Install build dependencies for Debian
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -14,20 +26,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libclang-dev \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /build
+# Copy recipe and build dependencies (cached layer!)
+COPY --from=planner /build/recipe.json recipe.json
+RUN cargo chef cook --release --all-features --recipe-path recipe.json
 
 # Copy Rust project files
 COPY Cargo.toml Cargo.lock ./
 COPY rune-core ./rune-core
 COPY rune-bridge ./rune-bridge
 
-# Build with cache mounts for Cargo
-RUN --mount=type=cache,target=/usr/local/cargo/git/db \
-    --mount=type=cache,target=/usr/local/cargo/registry/ \
-    cargo build --release --all-features
+# Build the actual application (only reruns when source changes)
+RUN cargo build --release --all-features
 
 # ============== Build Stage: Node.js/TypeScript ==============
-FROM node:${NODE_VERSION}-slim AS node-builder
+FROM node:${NODE_VERSION}-trixie-slim AS node-builder
 
 WORKDIR /app
 

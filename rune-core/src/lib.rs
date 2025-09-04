@@ -1,5 +1,6 @@
 #![allow(dead_code)] // TODO: Remove when implementation is complete
 
+pub mod cache;
 pub mod error;
 pub mod indexing;
 pub mod search;
