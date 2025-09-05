@@ -1,5 +1,6 @@
 pub mod hybrid;
 pub mod literal;
+pub mod query_parser;
 pub mod regex;
 pub mod semantic;
 pub mod symbol;
@@ -17,7 +18,7 @@ use crate::{
     storage::StorageBackend,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SearchMode {
     Literal,
     Regex,

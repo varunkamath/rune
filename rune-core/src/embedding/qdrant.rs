@@ -7,11 +7,13 @@ use tracing::{debug, error, info, warn};
 use qdrant_client::{
     Qdrant,
     qdrant::{
-        CreateCollectionBuilder, Distance, Filter, PointStruct, SearchParamsBuilder,
-        SearchPointsBuilder, UpsertPointsBuilder, VectorParamsBuilder,
+        CreateCollectionBuilder, Distance, Filter, PointStruct, QuantizationType,
+        ScalarQuantization, SearchParamsBuilder, SearchPointsBuilder, UpsertPointsBuilder,
+        VectorParamsBuilder,
     },
 };
 
+use super::quantization::{QuantizationConfig, QuantizationMode};
 use crate::Config;
 
 /// Manages Qdrant vector database operations
@@ -20,6 +22,7 @@ pub struct QdrantManager {
     #[cfg(feature = "semantic")]
     client: Option<Qdrant>,
     collection_name: String,
+    quantization_config: QuantizationConfig,
 }
 
 impl QdrantManager {
@@ -45,6 +48,7 @@ impl QdrantManager {
                     config,
                     client: None,
                     collection_name,
+                    quantization_config: QuantizationConfig::default(),
                 });
             }
 
@@ -86,13 +90,20 @@ impl QdrantManager {
                 Some(client) => {
                     info!("[QDRANT] Successfully connected to Qdrant");
 
-                    // Initialize collection
-                    if let Err(e) = Self::init_collection(&client, &collection_name).await {
+                    // Create quantization config
+                    let quantization_config = QuantizationConfig::default();
+                    quantization_config.log_config();
+
+                    // Initialize collection with quantization
+                    if let Err(e) =
+                        Self::init_collection(&client, &collection_name, &quantization_config).await
+                    {
                         error!("[QDRANT] Failed to initialize collection: {}", e);
                         return Ok(Self {
                             config,
                             client: None,
                             collection_name,
+                            quantization_config,
                         });
                     }
 
@@ -100,6 +111,7 @@ impl QdrantManager {
                         config,
                         client: Some(client),
                         collection_name,
+                        quantization_config,
                     })
                 },
                 None => {
@@ -113,6 +125,7 @@ impl QdrantManager {
                         config,
                         client: None,
                         collection_name,
+                        quantization_config: QuantizationConfig::default(),
                     })
                 },
             }
@@ -124,6 +137,7 @@ impl QdrantManager {
             Ok(Self {
                 config,
                 collection_name,
+                quantization_config: QuantizationConfig::default(),
             })
         }
     }
@@ -179,7 +193,11 @@ impl QdrantManager {
     }
 
     #[cfg(feature = "semantic")]
-    async fn init_collection(client: &Qdrant, collection_name: &str) -> Result<()> {
+    async fn init_collection(
+        client: &Qdrant,
+        collection_name: &str,
+        quant_config: &QuantizationConfig,
+    ) -> Result<()> {
         // Check if collection exists
         let collections = client.list_collections().await?;
         let exists = collections
@@ -188,19 +206,52 @@ impl QdrantManager {
             .any(|c| c.name == collection_name);
 
         if !exists {
-            info!("[QDRANT] Creating collection '{}'", collection_name);
+            info!(
+                "[QDRANT] Creating collection '{}' with quantization",
+                collection_name
+            );
+
+            // Build the collection with quantization config
+            let mut builder = CreateCollectionBuilder::new(collection_name)
+                .vectors_config(VectorParamsBuilder::new(384, Distance::Cosine));
+
+            // Add quantization configuration based on mode
+            match quant_config.mode {
+                QuantizationMode::Scalar | QuantizationMode::Asymmetric => {
+                    info!("[QDRANT] Configuring scalar quantization (int8)");
+                    let scalar_config = ScalarQuantization {
+                        r#type: QuantizationType::Int8 as i32,
+                        quantile: Some(0.99), // Use 99th percentile for better accuracy
+                        always_ram: Some(quant_config.always_ram),
+                    };
+
+                    builder = builder.quantization_config(scalar_config);
+                },
+                QuantizationMode::Binary => {
+                    // Note: Binary quantization requires special handling
+                    // The Qdrant Rust client may need updates for full binary support
+                    warn!("[QDRANT] Binary quantization requested but using scalar as fallback");
+                    let scalar_config = ScalarQuantization {
+                        r#type: QuantizationType::Int8 as i32,
+                        quantile: Some(0.99),
+                        always_ram: Some(quant_config.always_ram),
+                    };
+
+                    builder = builder.quantization_config(scalar_config);
+                },
+                QuantizationMode::None => {
+                    info!("[QDRANT] No quantization configured");
+                },
+            }
 
             client
-                .create_collection(
-                    CreateCollectionBuilder::new(collection_name)
-                        .vectors_config(VectorParamsBuilder::new(384, Distance::Cosine)),
-                )
+                .create_collection(builder)
                 .await
                 .context("Failed to create collection")?;
 
             info!(
-                "[QDRANT] Collection '{}' created successfully",
-                collection_name
+                "[QDRANT] Collection '{}' created successfully with {:?} quantization",
+                collection_name, quant_config.mode
             );
         } else {
             debug!("[QDRANT] Collection '{}' already exists", collection_name);
@@ -318,14 +369,38 @@ impl QdrantManager {
         #[cfg(feature = "semantic")]
         {
             if let Some(ref client) = self.client {
-                debug!("[QDRANT] Searching for {} similar vectors", limit);
+                // Apply oversampling for better accuracy with quantization
+                let actual_limit = if self.quantization_config.mode != QuantizationMode::None {
+                    let oversampled =
+                        (limit as f32 * self.quantization_config.oversampling).ceil() as usize;
+                    debug!(
+                        "[QDRANT] Searching with oversampling: requested={}, oversampled={}",
+                        limit, oversampled
+                    );
+                    oversampled
+                } else {
+                    limit
+                };
 
-                let search_params = SearchParamsBuilder::default().hnsw_ef(128).exact(false);
+                debug!("[QDRANT] Searching for {} similar vectors", actual_limit);
 
-                let mut search_builder =
-                    SearchPointsBuilder::new(&self.collection_name, query_embedding, limit as u64)
-                        .with_payload(true)
-                        .params(search_params);
+                let mut search_params = SearchParamsBuilder::default().hnsw_ef(128).exact(false);
+
+                // For asymmetric quantization, enable rescoring
+                if self.quantization_config.rescore
+                    && self.quantization_config.mode == QuantizationMode::Asymmetric
+                {
+                    // This will use full precision vectors for final scoring
+                    search_params = search_params.exact(true);
+                }
+
+                let mut search_builder = SearchPointsBuilder::new(
+                    &self.collection_name,
+                    query_embedding,
+                    actual_limit as u64,
+                )
+                .with_payload(true)
+                .params(search_params);
 
                 if let Some(filter) = filter {
                     search_builder = search_builder.filter(filter);
@@ -394,6 +469,16 @@ impl QdrantManager {
                     });
                 }
 
+                // Trim results to requested limit if we oversampled
+                if search_results.len() > limit {
+                    debug!(
+                        "[QDRANT] Trimming {} results to requested limit {}",
+                        search_results.len(),
+                        limit
+                    );
+                    search_results.truncate(limit);
+                }
+
                 Ok(search_results)
             } else {
                 debug!("[QDRANT] Client not available for search");
@@ -427,7 +512,8 @@ impl QdrantManager {
             if let Some(ref client) = self.client {
                 info!("[QDRANT] Clearing collection '{}'", self.collection_name);
                 client.delete_collection(&self.collection_name).await?;
-                Self::init_collection(client, &self.collection_name).await?;
+                Self::init_collection(client, &self.collection_name, &self.quantization_config)
+                    .await?;
             }
         }
         Ok(())

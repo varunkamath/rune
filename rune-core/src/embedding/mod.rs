@@ -3,6 +3,7 @@ pub mod chunker;
 pub mod generator;
 pub mod model_manager;
 pub mod qdrant;
+pub mod quantization;
 
 pub use chunker::{ChunkType, ChunkerConfig, CodeChunk, CodeChunker};
 pub use generator::EmbeddingGenerator;
