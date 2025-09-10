@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.1.0](https://github.com/varunkamath/rune/compare/v1.0.4...v1.1.0) (2025-09-10)
+
+### ✨ Features
+
+* Fuzzy matching, caching ([9a9d2f7](https://github.com/varunkamath/rune/commit/9a9d2f7b9c660b7decd1684fb2547db4d61ef61f))
+
+### 📚 Documentation
+
+* Fix config JSON ([affe2de](https://github.com/varunkamath/rune/commit/affe2dea5a823df40bccfe947205d0763fee8a8d))
+
+### ✅ Tests
+
+* Fix literal test with fuzzy enabled ([79e6a50](https://github.com/varunkamath/rune/commit/79e6a50bb810dc105a39ddad9cbe4e9c40f68f0f))
+
 ## [1.0.4](https://github.com/varunkamath/rune/compare/v1.0.3...v1.0.4) (2025-09-05)
 
 ### 🐛 Bug Fixes
