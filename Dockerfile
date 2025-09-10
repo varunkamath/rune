@@ -142,6 +142,9 @@ RUN chmod +x /etc/s6-overlay/s6-rc.d/*/run \
 # Copy IDE configuration templates
 COPY --chown=rune:rune docker/configs /config
 
+# Copy start script for MCP mode
+COPY --chmod=755 docker/start-mcp.sh /usr/local/bin/start-mcp
+
 # Set working directory
 WORKDIR /app
 
@@ -160,9 +163,9 @@ ENV NODE_ENV=production \
 EXPOSE 3333
 
 # Health check - check if MCP server responds to JSON-RPC
-HEALTHCHECK --interval=30s --timeout=10s \
-    --start-period=90s --retries=3 \
-    CMD echo '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"0.1.0","capabilities":{}},"id":1}' | nc -w 2 localhost 3333 | grep -q "serverInfo" || exit 1
+# HEALTHCHECK --interval=30s --timeout=10s \
+#     --start-period=90s --retries=3 \
+#     CMD echo '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"0.1.0","capabilities":{}},"id":1}' | nc -w 2 localhost 3333 | grep -q "serverInfo" || exit 1
 
 # Use s6-overlay as init
 ENTRYPOINT ["/init"]
@@ -175,7 +178,6 @@ LABEL org.opencontainers.image.created="${BUILD_DATE}" \
     org.opencontainers.image.source="https://github.com/varunkamath/rune" \
     org.opencontainers.image.version="${VERSION}" \
     org.opencontainers.image.revision="${GIT_COMMIT}" \
-    org.opencontainers.image.vendor="Rune MCP" \
     org.opencontainers.image.licenses="MIT" \
     org.opencontainers.image.title="Rune MCP Server" \
     org.opencontainers.image.description="High-performance MCP code context engine with embedded Qdrant"

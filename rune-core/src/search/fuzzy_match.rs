@@ -149,33 +149,44 @@ impl FuzzyMatcher {
             return matches;
         }
 
+        // Convert to char indices to handle UTF-8 properly
+        let text_chars: Vec<char> = text.chars().collect();
+        let query_char_len = query.chars().count();
+
+        if text_chars.is_empty() || query_char_len == 0 {
+            return matches;
+        }
+
         // Slide a window through the text looking for approximate matches
-        // Window size should be close to query length
-        let min_window = query.len().saturating_sub(self.config.max_edit_distance);
-        let max_window = query.len() + self.config.max_edit_distance;
+        // Window size should be close to query length in characters
+        let min_window = query_char_len.saturating_sub(self.config.max_edit_distance);
+        let max_window = query_char_len + self.config.max_edit_distance;
 
         for window_size in min_window..=max_window {
-            for i in 0..text.len().saturating_sub(window_size - 1) {
-                let end = (i + window_size).min(text.len());
-                let substring = &text[i..end];
+            for i in 0..text_chars.len().saturating_sub(window_size - 1) {
+                let end = (i + window_size).min(text_chars.len());
+                let substring: String = text_chars[i..end].iter().collect();
 
                 // Calculate similarity for this substring
                 let similarity = if self.config.use_jaro_winkler {
-                    jaro_winkler(query, substring)
+                    jaro_winkler(query, &substring)
                 } else {
-                    normalized_levenshtein(query, substring)
+                    normalized_levenshtein(query, &substring)
                 };
 
-                let edit_distance = levenshtein(query, substring);
+                let edit_distance = levenshtein(query, &substring);
 
                 if similarity >= self.config.similarity_threshold
                     && edit_distance <= self.config.max_edit_distance
                 {
+                    // Calculate byte position from char position
+                    let byte_position = text.char_indices().nth(i).map(|(pos, _)| pos).unwrap_or(0);
+
                     matches.push(FuzzyMatch {
-                        matched_text: substring.to_string(),
+                        matched_text: substring,
                         similarity,
                         edit_distance,
-                        position: i,
+                        position: byte_position,
                     });
                 }
             }

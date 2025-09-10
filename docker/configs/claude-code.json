@@ -6,13 +6,13 @@
         "run",
         "--rm",
         "-i",
+        "--entrypoint",
+        "/usr/local/bin/start-mcp",
         "-v",
         "${PWD}:/workspace:ro",
         "-v",
         "${HOME}/.rune:/data",
-        "rune-mcp:latest",
-        "node",
-        "/app/dist/index.js"
+        "rune-mcp:latest"
       ],
       "env": {}
     }
