@@ -8,7 +8,7 @@ repos:
       - id: trailing-whitespace
         exclude: ^(.*\.md|.*\.node)$
       - id: end-of-file-fixer
-        exclude: ^(.*\.node|target/|dist/)$
+        exclude: ^(.*\.node|target/|dist/|Dockerfile)$
       - id: check-yaml
         exclude: ^(.github/workflows/)
       - id: check-added-large-files
@@ -107,6 +107,14 @@ repos:
       - id: hadolint-docker
         files: Dockerfile.*
         args: ["--ignore", "DL3008"]
+
+  - repo: https://github.com/reteps/dockerfmt
+    rev: v0.3.7
+    hooks:
+      - id: dockerfmt
+        args:
+          - --indent=4
+          - --write
 
   # Shell script linting
   # - repo: https://github.com/shellcheck-py/shellcheck-py

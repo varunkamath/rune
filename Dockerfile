@@ -55,8 +55,8 @@ COPY mcp-server/src ./src
 COPY mcp-server/tsconfig.json ./
 
 # Build TypeScript and remove dev dependencies in one layer
-RUN npm run build:ts && \
-    npm prune --omit=dev
+RUN npm run build:ts \
+    && npm prune --omit=dev
 
 # ============== Build Stage: Qdrant ==============
 # Use official Qdrant Docker image which supports both amd64 and arm64
@@ -78,7 +78,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gnupg \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" > /etc/apt/sources.list.d/nodesource.list \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" >/etc/apt/sources.list.d/nodesource.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
@@ -113,21 +113,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user (Debian style)
-RUN groupadd -g 1001 rune && \
-    useradd -m -u 1001 -g rune -s /bin/bash rune
+RUN groupadd -g 1001 rune \
+    && useradd -m -u 1001 -g rune -s /bin/bash rune
 
 # Create necessary directories
-RUN mkdir -p /app /data/qdrant /data/cache /workspace /config && \
-    chown -R rune:rune /app /data /workspace /config
+RUN mkdir -p /app /data/qdrant /data/cache /workspace /config \
+    && chown -R rune:rune /app /data /workspace /config
 
 # Copy Qdrant binary from official image
 COPY --from=qdrant-source --chown=rune:rune /qdrant/qdrant /usr/local/bin/qdrant
 
 # Copy Rust native module - find the actual .so file
 RUN mkdir -p /app
-COPY --from=rust-builder --chown=rune:rune \
-    /build/target/release/librune_bridge.* \
-    /app/rune.node
+COPY --from=rust-builder --chown=rune:rune /build/target/release/librune_bridge.* /app/rune.node
 
 # Copy built application and production dependencies from npm build
 COPY --from=node-builder --chown=rune:rune /app/dist /app/dist
@@ -136,10 +134,10 @@ COPY --from=node-builder --chown=rune:rune /app/package.json /app/
 
 # Copy s6 service definitions and register them
 COPY --chown=rune:rune docker/s6-services /etc/s6-overlay/s6-rc.d
-RUN chmod +x /etc/s6-overlay/s6-rc.d/*/run && \
+RUN chmod +x /etc/s6-overlay/s6-rc.d/*/run \
     # Register services with s6-rc
-    touch /etc/s6-overlay/s6-rc.d/user/contents.d/qdrant && \
-    touch /etc/s6-overlay/s6-rc.d/user/contents.d/rune
+    && touch /etc/s6-overlay/s6-rc.d/user/contents.d/qdrant \
+    && touch /etc/s6-overlay/s6-rc.d/user/contents.d/rune
 
 # Copy IDE configuration templates
 COPY --chown=rune:rune docker/configs /config
@@ -174,7 +172,7 @@ ARG BUILD_DATE
 ARG GIT_COMMIT
 ARG VERSION
 LABEL org.opencontainers.image.created="${BUILD_DATE}" \
-    org.opencontainers.image.source="https://github.com/rune-mcp/server" \
+    org.opencontainers.image.source="https://github.com/varunkamath/rune" \
     org.opencontainers.image.version="${VERSION}" \
     org.opencontainers.image.revision="${GIT_COMMIT}" \
     org.opencontainers.image.vendor="Rune MCP" \

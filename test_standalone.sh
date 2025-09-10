@@ -121,6 +121,34 @@ run_test "5. File pattern: Python only" '{"jsonrpc":"2.0","method":"tools/call",
 
 echo ""
 echo "=========================================="
+echo "FUZZY MATCHING TESTS"
+echo "=========================================="
+
+# Test common typos
+run_test "6. Fuzzy: 'functoin' (typo)" '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"functoin","mode":"literal"}},"id":9}'
+
+run_test "7. Fuzzy: 'varaible' (typo)" '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"varaible","mode":"literal"}},"id":10}'
+
+run_test "8. Fuzzy: 'implemnet' (typo)" '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"implemnet","mode":"literal"}},"id":11}'
+
+# Test with fuzzy matching disabled
+echo ""
+echo "Testing with fuzzy matching disabled..."
+RUNE_FUZZY_ENABLED=false run_test "9. Fuzzy disabled: 'functoin'" '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"functoin","mode":"literal"}},"id":12}'
+
+# Test fuzzy matching with special characters
+run_test "10. Fuzzy: 'authentification' vs 'authentication'" '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"authentification","mode":"literal"}},"id":13}'
+
+# Test similarity threshold boundaries
+run_test "11. Fuzzy: Very different string 'xyzabc'" '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"xyzabc","mode":"literal"}},"id":14}'
+
+# Common programming typos
+run_test "12. Fuzzy: 'cosnt' → 'const'" '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"cosnt","mode":"literal"}},"id":15}'
+run_test "13. Fuzzy: 'retrun' → 'return'" '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"retrun","mode":"literal"}},"id":16}'
+run_test "14. Fuzzy: 'pritn' → 'print'" '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"pritn","mode":"literal"}},"id":17}'
+
+echo ""
+echo "=========================================="
 echo "SEMANTIC SEARCH TESTS"
 echo "=========================================="
 
@@ -214,6 +242,103 @@ try:
 except Exception as e:
     print(f'  Failed to parse details: {e}')
 " 2>/dev/null || echo "  Failed to get collection details"
+fi
+
+echo ""
+echo "=========================================="
+echo "FUZZY MATCHING CONFIGURATION TESTS"
+echo "=========================================="
+
+# Test with custom threshold
+echo ""
+echo "Testing with high threshold (0.9)..."
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"functoin","mode":"literal"}},"id":18}' | \
+    RUST_LOG=error RUNE_FUZZY_THRESHOLD=0.9 RUNE_ENABLE_SEMANTIC=true RUNE_WORKSPACE="$WORKSPACE_PATH" node mcp-server/dist/index.js 2>/dev/null | \
+    python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    if 'result' in data and 'content' in data['result']:
+        result = json.loads(data['result']['content'][0]['text'])
+        if result['total_matches'] == 0:
+            print('✓ High threshold correctly rejected poor match')
+        else:
+            print(f\"⚠️ High threshold found {result['total_matches']} matches (expected 0)\")
+except Exception as e:
+    print(f'✗ Parse error: {e}')
+"
+
+echo ""
+echo "Testing with low threshold (0.5)..."
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"func","mode":"literal"}},"id":19}' | \
+    RUST_LOG=error RUNE_FUZZY_THRESHOLD=0.5 RUNE_ENABLE_SEMANTIC=true RUNE_WORKSPACE="$WORKSPACE_PATH" node mcp-server/dist/index.js 2>/dev/null | \
+    python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    if 'result' in data and 'content' in data['result']:
+        result = json.loads(data['result']['content'][0]['text'])
+        print(f\"✓ Low threshold found {result['total_matches']} fuzzy matches\")
+except Exception as e:
+    print(f'✗ Parse error: {e}')
+"
+
+echo ""
+echo "Testing with max edit distance = 1..."
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"tset","mode":"literal"}},"id":20}' | \
+    RUST_LOG=error RUNE_FUZZY_MAX_DISTANCE=1 RUNE_ENABLE_SEMANTIC=true RUNE_WORKSPACE="$WORKSPACE_PATH" node mcp-server/dist/index.js 2>/dev/null | \
+    python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    if 'result' in data and 'content' in data['result']:
+        result = json.loads(data['result']['content'][0]['text'])
+        print(f\"✓ Max distance=1 found {result['total_matches']} matches\")
+except Exception as e:
+    print(f'✗ Parse error: {e}')
+"
+
+echo ""
+echo "=========================================="
+echo "FUZZY MATCHING PERFORMANCE"
+echo "=========================================="
+
+# Function to get milliseconds timestamp (macOS compatible)
+get_millis() {
+    if command -v gdate > /dev/null 2>&1; then
+        # Use GNU date if available (installed via homebrew)
+        gdate +%s%3N
+    elif command -v python3 > /dev/null 2>&1; then
+        # Fallback to Python for macOS
+        python3 -c 'import time; print(int(time.time() * 1000))'
+    else
+        # Last resort: seconds precision with 000 appended
+        echo "$(date +%s)000"
+    fi
+}
+
+# Performance comparison
+echo "Measuring performance impact of fuzzy matching..."
+
+# Time exact match
+START_TIME=$(get_millis)
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"function","mode":"literal"}},"id":21}' | \
+    RUST_LOG=error RUNE_ENABLE_SEMANTIC=true RUNE_WORKSPACE="$WORKSPACE_PATH" node mcp-server/dist/index.js 2>/dev/null > /dev/null
+END_TIME=$(get_millis)
+EXACT_TIME=$((END_TIME - START_TIME))
+
+# Time fuzzy match
+START_TIME=$(get_millis)
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"functoin","mode":"literal"}},"id":22}' | \
+    RUST_LOG=error RUNE_ENABLE_SEMANTIC=true RUNE_WORKSPACE="$WORKSPACE_PATH" node mcp-server/dist/index.js 2>/dev/null > /dev/null
+END_TIME=$(get_millis)
+FUZZY_TIME=$((END_TIME - START_TIME))
+
+echo "✓ Exact match time: ${EXACT_TIME}ms"
+echo "✓ Fuzzy match time: ${FUZZY_TIME}ms"
+if [ $EXACT_TIME -gt 0 ]; then
+    OVERHEAD=$(( (FUZZY_TIME - EXACT_TIME) * 100 / EXACT_TIME ))
+    echo "✓ Fuzzy matching overhead: ${OVERHEAD}%"
 fi
 
 echo ""

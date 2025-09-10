@@ -118,6 +118,29 @@ run_test "5. File pattern: Python only" '{"jsonrpc":"2.0","method":"tools/call",
 
 echo ""
 echo "=========================================="
+echo "FUZZY MATCHING TESTS"
+echo "=========================================="
+
+# Test common typos
+run_test "6. Fuzzy: 'functoin' (typo)" '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"functoin","mode":"literal"}},"id":9}'
+
+run_test "7. Fuzzy: 'varaible' (typo)" '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"varaible","mode":"literal"}},"id":10}'
+
+run_test "8. Fuzzy: 'implemnet' (typo)" '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"implemnet","mode":"literal"}},"id":11}'
+
+# Test fuzzy matching with special characters
+run_test "9. Fuzzy: 'authentification' vs 'authentication'" '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"authentification","mode":"literal"}},"id":12}'
+
+# Test similarity threshold boundaries
+run_test "10. Fuzzy: Very different string 'xyzabc'" '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"xyzabc","mode":"literal"}},"id":13}'
+
+# Common programming typos
+run_test "11. Fuzzy: 'cosnt' → 'const'" '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"cosnt","mode":"literal"}},"id":14}'
+run_test "12. Fuzzy: 'retrun' → 'return'" '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"retrun","mode":"literal"}},"id":15}'
+run_test "13. Fuzzy: 'pritn' → 'print'" '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"pritn","mode":"literal"}},"id":16}'
+
+echo ""
+echo "=========================================="
 echo "SEMANTIC SEARCH TESTS"
 echo "=========================================="
 
@@ -174,6 +197,92 @@ print(f\"Collection: {r['config']['params']['vectors']['size']}-dim vectors\")
 print(f\"Points indexed: {r['points_count']}\")
 print(f\"Status: {r['status']}\")
 " 2>/dev/null
+fi
+
+echo ""
+echo "=========================================="
+echo "FUZZY MATCHING CONFIGURATION TESTS"
+echo "=========================================="
+
+# Test with fuzzy matching disabled in Docker container
+echo ""
+echo "Testing with fuzzy matching disabled..."
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"functoin","mode":"literal"}},"id":17}' | \
+    docker exec -e RUNE_FUZZY_ENABLED=false -i $CONTAINER_ID node /app/dist/index.js 2>/dev/null | \
+    python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    if 'result' in data and 'content' in data['result']:
+        result = json.loads(data['result']['content'][0]['text'])
+        if result['total_matches'] == 0:
+            print('✓ Fuzzy disabled: correctly found 0 matches for typo')
+        else:
+            print(f\"⚠️ Fuzzy disabled but found {result['total_matches']} matches\")
+except Exception as e:
+    print(f'✗ Parse error: {e}')
+"
+
+# Test with custom threshold
+echo ""
+echo "Testing with high threshold (0.9) in container..."
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"functoin","mode":"literal"}},"id":18}' | \
+    docker exec -e RUNE_FUZZY_THRESHOLD=0.9 -i $CONTAINER_ID node /app/dist/index.js 2>/dev/null | \
+    python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    if 'result' in data and 'content' in data['result']:
+        result = json.loads(data['result']['content'][0]['text'])
+        if result['total_matches'] == 0:
+            print('✓ High threshold correctly rejected poor match')
+        else:
+            print(f\"⚠️ High threshold found {result['total_matches']} matches\")
+except Exception as e:
+    print(f'✗ Parse error: {e}')
+"
+
+echo ""
+echo "=========================================="
+echo "FUZZY MATCHING PERFORMANCE (Docker)"
+echo "=========================================="
+
+# Performance comparison in Docker
+echo "Measuring performance impact in container..."
+
+# Function to get milliseconds timestamp (macOS compatible)
+get_millis() {
+    if command -v gdate > /dev/null 2>&1; then
+        # Use GNU date if available (installed via homebrew)
+        gdate +%s%3N
+    elif command -v python3 > /dev/null 2>&1; then
+        # Fallback to Python for macOS
+        python3 -c 'import time; print(int(time.time() * 1000))'
+    else
+        # Last resort: seconds precision with 000 appended
+        echo "$(date +%s)000"
+    fi
+}
+
+# Time exact match
+START_TIME=$(get_millis)
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"function","mode":"literal"}},"id":19}' | \
+    docker exec -i $CONTAINER_ID node /app/dist/index.js 2>/dev/null > /dev/null
+END_TIME=$(get_millis)
+EXACT_TIME=$((END_TIME - START_TIME))
+
+# Time fuzzy match
+START_TIME=$(get_millis)
+echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"search","arguments":{"query":"functoin","mode":"literal"}},"id":20}' | \
+    docker exec -i $CONTAINER_ID node /app/dist/index.js 2>/dev/null > /dev/null
+END_TIME=$(get_millis)
+FUZZY_TIME=$((END_TIME - START_TIME))
+
+echo "✓ Exact match time: ${EXACT_TIME}ms"
+echo "✓ Fuzzy match time: ${FUZZY_TIME}ms"
+if [ $EXACT_TIME -gt 0 ]; then
+    OVERHEAD=$(( (FUZZY_TIME - EXACT_TIME) * 100 / EXACT_TIME ))
+    echo "✓ Fuzzy matching overhead: ${OVERHEAD}%"
 fi
 
 # Cleanup

@@ -1,3 +1,4 @@
+pub mod fuzzy_match;
 pub mod hybrid;
 pub mod literal;
 pub mod query_parser;
