@@ -1,8 +1,16 @@
 {
   "command": "docker",
-  "args": ["exec", "-i", "rune", "node", "/app/dist/index.js"],
-  "transport": "stdio",
-  "env": {
-    "RUNE_WORKSPACE": "."
-  }
+  "args": [
+    "run",
+    "--rm",
+    "-i",
+    "-v",
+    "${workspaceFolder}:/workspace:ro",
+    "-v",
+    "${HOME}/.rune:/data",
+    "rune-mcp:latest",
+    "node",
+    "/app/dist/index.js"
+  ],
+  "transport": "stdio"
 }

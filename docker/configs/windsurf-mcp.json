@@ -2,10 +2,18 @@
   "mcpServers": {
     "rune": {
       "command": "docker",
-      "args": ["exec", "-i", "rune", "node", "/app/dist/index.js"],
-      "env": {
-        "RUNE_WORKSPACE": "${workspaceFolder}"
-      }
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-v",
+        "${HOME}/Projects:/workspace:ro",
+        "-v",
+        "${HOME}/.rune:/data",
+        "rune-mcp:latest",
+        "node",
+        "/app/dist/index.js"
+      ]
     }
   }
 }

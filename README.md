@@ -56,7 +56,7 @@ Add to Claude Desktop configuration:
         "--rm",
         "-i",
         "-v",
-        "${HOME}/Projects:/workspace:ro",
+        "${HOME}:/workspace:ro",
         "-v",
         "${HOME}/.rune:/data",
         "rune-mcp:latest",
@@ -70,7 +70,9 @@ Add to Claude Desktop configuration:
 ```
 
 **Note**: The container will start automatically when Claude Desktop connects.
-Use `${HOME}` for cross-platform compatibility.
+This mounts your entire home directory as read-only. Customize the first volume
+mount (e.g., `"${HOME}/code:/workspace:ro"`) to limit access to specific
+directories.
 
 **Restart Claude Desktop** to activate Rune
 
