@@ -78,7 +78,47 @@ class RuneMcpServer {
       tools: [
         {
           name: 'search',
-          description: 'Search code using various modes (literal, regex, symbol, semantic, hybrid)',
+          description: `Advanced multi-modal code search engine for finding code patterns, implementations, and concepts across your entire codebase.
+
+This tool provides high-performance search capabilities that go beyond simple text matching, offering intelligent code understanding through multiple search modes.
+
+When to use this tool:
+- Finding function/class/variable definitions and usages
+- Locating specific code patterns or implementations
+- Discovering similar code semantically (even with different syntax)
+- Searching for security vulnerabilities or code smells
+- Understanding code relationships and dependencies
+- Finding examples of how APIs or libraries are used
+- Tracking down bugs by searching for error patterns
+- Refactoring by finding all instances of a pattern
+
+Search Modes Explained:
+- literal: Fast exact text search with fuzzy matching for typos (e.g., 'functoin' finds 'function')
+- regex: Pattern matching with full regex support for complex searches
+- symbol: AST-based search for language constructs (functions, classes, variables)
+- semantic: AI-powered search understanding code meaning, not just text
+- hybrid: Combines all modes using Reciprocal Rank Fusion for best results (RECOMMENDED)
+
+Key Features:
+- Typo tolerance: Automatically finds similar terms using Levenshtein distance
+- Context awareness: Returns surrounding code for better understanding
+- Language agnostic: Works with 100+ programming languages
+- Lightning fast: Optimized with Tantivy (Rust-based Lucene) and caching
+- Incremental indexing: Only re-indexes changed files
+
+Best Practices:
+1. Start with hybrid mode for most searches (default)
+2. Use semantic mode for concept searches (e.g., "authentication logic")
+3. Use symbol mode for finding definitions (e.g., "class UserAuth")
+4. Use regex for complex patterns (e.g., "TODO.*security")
+5. Apply file filters to narrow scope (e.g., filePatterns: ["*.rs", "*.go"])
+
+Examples:
+- Find authentication code: query="authentication", mode="semantic"
+- Find TODO comments: query="TODO|FIXME", mode="regex"
+- Find React hooks: query="use[A-Z]\\w+", mode="regex", filePatterns=["*.tsx", "*.jsx"]
+- Find database connections: query="database connection pooling", mode="hybrid"
+- Find similar implementations: query="quicksort algorithm", mode="semantic"`,
           inputSchema: {
             type: 'object',
             properties: {
@@ -115,7 +155,38 @@ class RuneMcpServer {
         },
         {
           name: 'index_status',
-          description: 'Get indexing status and statistics',
+          description: `Monitor the current state of code indexing and search engine statistics.
+
+This tool provides real-time insights into the indexing pipeline, helping you understand what has been indexed and the current search engine capacity.
+
+When to use this tool:
+- Checking if initial indexing is complete before searching
+- Monitoring indexing progress for large codebases
+- Debugging search issues (missing results might mean incomplete indexing)
+- Understanding memory usage and cache efficiency
+- Verifying that recent file changes have been indexed
+- Troubleshooting performance issues
+
+Returned Metrics:
+- indexed_files: Total number of files processed and searchable
+- total_symbols: Count of all extracted code symbols (functions, classes, etc.)
+- index_size_bytes: Disk space used by search indices
+- cache_size_bytes: Memory used by search result cache
+- last_index_time: Timestamp of most recent indexing operation
+- indexing_errors: Any files that failed to index
+
+Usage Tips:
+1. Always check status after starting Rune to ensure indexing is ready
+2. Monitor after large refactoring to confirm re-indexing
+3. Use before semantic search to verify vector database is populated
+4. Check cache_size to understand memory pressure
+5. Review indexing_errors to identify problematic files
+
+Interpretation Guide:
+- Low indexed_files might indicate incomplete scanning
+- High cache_size suggests good performance but higher memory use
+- indexing_errors often occur with binary files or very large files
+- total_symbols helps gauge codebase complexity`,
           inputSchema: {
             type: 'object',
             properties: {},
@@ -123,7 +194,46 @@ class RuneMcpServer {
         },
         {
           name: 'reindex',
-          description: 'Trigger reindexing of repositories',
+          description: `Force re-indexing of code repositories to update the search index with latest changes.
+
+This tool triggers a fresh scan of your codebase, updating all search indices including text, symbol, and semantic embeddings.
+
+When to use this tool:
+- After significant code changes outside of the IDE
+- When search results seem outdated or incorrect
+- After changing gitignore rules or file filters
+- Following a git pull/merge with many changes
+- When switching branches with different code structure
+- After adding new repositories to the workspace
+- To clear corrupted index data
+
+Indexing Process:
+1. Scans all files in workspace directories
+2. Respects .gitignore and configured file filters
+3. Extracts text content for literal/regex search
+4. Parses AST for symbol extraction
+5. Generates embeddings for semantic search (if enabled)
+6. Updates all search indices atomically
+7. Clears outdated cache entries
+
+Performance Considerations:
+- Incremental by default (only changed files)
+- Full reindex with empty repositories parameter
+- Typical speed: ~1000 files/second
+- Semantic indexing slower due to embedding generation
+- Runs in background, search available during reindex
+
+Usage Examples:
+- Full reindex: repositories=[]
+- Specific repo: repositories=["/path/to/repo"]
+- Multiple repos: repositories=["/repo1", "/repo2"]
+
+Best Practices:
+1. Let automatic incremental indexing handle most updates
+2. Only force full reindex when experiencing issues
+3. Monitor index_status during reindexing
+4. Avoid reindexing during active development
+5. Consider disabling semantic if reindexing is too slow`,
           inputSchema: {
             type: 'object',
             properties: {
@@ -137,7 +247,54 @@ class RuneMcpServer {
         },
         {
           name: 'configure',
-          description: 'Configure Rune engine settings',
+          description: `Configure and optimize the Rune search engine settings for your specific needs.
+
+This tool allows dynamic adjustment of search engine parameters to balance performance, accuracy, and resource usage.
+
+When to use this tool:
+- Setting up Rune for a new project or workspace
+- Optimizing performance for large codebases
+- Enabling/disabling semantic search based on needs
+- Adjusting cache settings for memory constraints
+- Adding new workspace directories to search
+- Customizing language-specific settings
+
+Configuration Options:
+
+workspaceRoots: Array of root directories to index and search
+- Add all project roots for comprehensive search
+- Exclude node_modules, vendor, and build directories
+- Supports multiple repositories simultaneously
+
+cacheDir: Directory for storing search indices and cache
+- Use SSD for best performance
+- Ensure adequate space (typically 10-20% of codebase size)
+- Shared across all workspace roots
+
+enableSemantic: Toggle AI-powered semantic search
+- Requires Qdrant vector database running
+- Provides concept-based search beyond text matching
+- Higher memory usage but better search quality
+- Disable for faster indexing on large codebases
+
+Advanced Settings (environment variables):
+- RUNE_MAX_FILE_SIZE: Skip files larger than this (default 10MB)
+- RUNE_INDEXING_THREADS: Parallel indexing threads (default 4)
+- RUNE_FUZZY_THRESHOLD: Typo tolerance level (default 0.75)
+- RUNE_LANGUAGES: Comma-separated language list to index
+
+Optimization Tips:
+1. Start with semantic disabled for initial indexing
+2. Use multiple workspace roots for monorepos
+3. Increase threads for faster indexing on multicore systems
+4. Adjust fuzzy threshold based on typo tolerance needs
+5. Limit languages to those actually used in your project
+
+Example Configurations:
+- Single project: workspaceRoots=["/home/user/myproject"]
+- Monorepo: workspaceRoots=["/repo/service-a", "/repo/service-b"]
+- Memory-constrained: enableSemantic=false, cacheDir="/tmp/rune"
+- Full-featured: enableSemantic=true, workspaceRoots=["."]`,
           inputSchema: {
             type: 'object',
             properties: {
