@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-      - beta
-      - alpha
   workflow_dispatch:
 
 permissions:
@@ -65,12 +63,12 @@ jobs:
     name: Release
     needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta' || github.ref == 'refs/heads/alpha')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     outputs:
-      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
-      new_release_version: ${{ steps.semantic.outputs.new_release_version }}
-      new_release_major_version: ${{ steps.semantic.outputs.new_release_major_version }}
-      new_release_minor_version: ${{ steps.semantic.outputs.new_release_minor_version }}
+      new_release_published: ${{ steps.check_release.outputs.new_release_published }}
+      new_release_version: ${{ steps.check_release.outputs.new_release_version }}
+      new_release_major_version: ${{ steps.check_release.outputs.new_release_major_version }}
+      new_release_minor_version: ${{ steps.check_release.outputs.new_release_minor_version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -115,6 +113,22 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npx semantic-release
+      
+      - name: Check if release was created
+        id: check_release
+        run: |
+          # Check if VERSION file was updated (indicates a release)
+          if [ -f VERSION ]; then
+            VERSION=$(cat VERSION)
+            echo "new_release_published=true" >> $GITHUB_OUTPUT
+            echo "new_release_version=${VERSION}" >> $GITHUB_OUTPUT
+            MAJOR=$(echo $VERSION | cut -d. -f1)
+            MINOR=$(echo $VERSION | cut -d. -f2)
+            echo "new_release_major_version=${MAJOR}" >> $GITHUB_OUTPUT
+            echo "new_release_minor_version=${MINOR}" >> $GITHUB_OUTPUT
+          else
+            echo "new_release_published=false" >> $GITHUB_OUTPUT
+          fi
 
   docker:
     name: Build and Push Docker
@@ -145,26 +159,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: |
-            ghcr.io/${{ github.repository }}
-            runemcp/server
+            ghcr.io/varunkamath/rune-mcp
           tags: |
             type=raw,value=${{ needs.release.outputs.new_release_version }}
             type=raw,value=${{ needs.release.outputs.new_release_major_version }}.${{ needs.release.outputs.new_release_minor_version }}
-            type=raw,value=${{ needs.release.outputs.new_release_major_version }},enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=beta,enable=${{ github.ref == 'refs/heads/beta' }}
-            type=raw,value=alpha,enable=${{ github.ref == 'refs/heads/alpha' }}
+            type=raw,value=${{ needs.release.outputs.new_release_major_version }}
+            type=raw,value=latest
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -184,7 +189,7 @@ jobs:
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
         with:
-          image: ghcr.io/${{ github.repository }}:${{ needs.release.outputs.new_release_version }}
+          image: ghcr.io/varunkamath/rune-mcp:${{ needs.release.outputs.new_release_version }}
           format: spdx-json
           output-file: sbom-${{ matrix.platform }}.spdx.json
 
@@ -193,7 +198,7 @@ jobs:
           COSIGN_EXPERIMENTAL: 1
         run: |
           cosign sign --yes \
-            ghcr.io/${{ github.repository }}:${{ needs.release.outputs.new_release_version }}
+            ghcr.io/varunkamath/rune-mcp:${{ needs.release.outputs.new_release_version }}
 
   npm-publish:
     name: Publish to NPM

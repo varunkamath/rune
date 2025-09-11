@@ -1,15 +1,5 @@
 {
-  "branches": [
-    "main",
-    {
-      "name": "beta",
-      "prerelease": true
-    },
-    {
-      "name": "alpha",
-      "prerelease": true
-    }
-  ],
+  "branches": ["main"],
   "plugins": [
     [
       "@semantic-release/commit-analyzer",
@@ -99,7 +89,7 @@
             "name": "rune-darwin-arm64.node"
           }
         ],
-        "successComment": "🎉 This ${issue.pull_request ? 'PR' : 'issue'} has been resolved in version ${nextRelease.version} :tada:\n\nThe release is available on:\n- [GitHub release](https://github.com/rune-mcp/server/releases/tag/v${nextRelease.version})\n- [Docker Hub](https://hub.docker.com/r/runemcp/server/tags?name=${nextRelease.version})\n\nYour **[semantic-release](https://github.com/semantic-release/semantic-release)** bot 📦🚀",
+        "successComment": "🎉 This ${issue.pull_request ? 'PR' : 'issue'} has been resolved in version ${nextRelease.version} :tada:\n\nThe release is available on:\n- [GitHub release](https://github.com/varunkamath/rune/releases/tag/v${nextRelease.version})\n- [GitHub Container Registry](https://ghcr.io/varunkamath/rune-mcp)\n\nYour **[semantic-release](https://github.com/semantic-release/semantic-release)** bot 📦🚀",
         "releasedLabels": ["released", "released-on-@${nextRelease.channel}"],
         "failTitle": "The automated release failed 🚨",
         "failComment": "The release from the `${branch.name}` branch has failed.\n\nPlease check the [logs](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}) for details."
