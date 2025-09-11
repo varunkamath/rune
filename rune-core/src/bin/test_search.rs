@@ -23,6 +23,7 @@ async fn main() -> anyhow::Result<()> {
             "rust".to_string(),
             "go".to_string(),
         ],
+        file_watch_debounce_ms: 500,
     };
 
     // Create engine

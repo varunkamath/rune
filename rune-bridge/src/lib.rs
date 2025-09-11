@@ -122,6 +122,7 @@ impl RuneBridge {
             indexing_threads: config.indexing_threads,
             enable_semantic: config.enable_semantic,
             languages: config.languages,
+            file_watch_debounce_ms: config.file_watch_debounce_ms,
         };
 
         let engine = RuneEngine::new(rust_config)
@@ -231,7 +232,18 @@ impl RuneBridge {
             .await
             .map_err(|e| Error::from_reason(format!("Failed to get stats: {}", e)))?;
 
-        serde_json::to_string(&stats)
+        // Add watching status to stats
+        let mut stats_json = serde_json::to_value(&stats)
+            .map_err(|e| Error::from_reason(format!("Failed to serialize stats: {}", e)))?;
+
+        if let Some(obj) = stats_json.as_object_mut() {
+            obj.insert(
+                "file_watching_active".to_string(),
+                serde_json::Value::Bool(engine.is_watching()),
+            );
+        }
+
+        serde_json::to_string(&stats_json)
             .map_err(|e| Error::from_reason(format!("Failed to serialize stats: {}", e)))
     }
 
@@ -267,6 +279,7 @@ struct ConfigJs {
     indexing_threads: usize,
     enable_semantic: bool,
     languages: Vec<String>,
+    file_watch_debounce_ms: u64,
 }
 
 #[derive(serde::Deserialize, Debug)]

@@ -5,9 +5,10 @@ pub mod tantivy_indexer;
 
 use std::path::Path;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use anyhow::Result;
+use notify_debouncer_full::{Debouncer, FileIdMap};
 use rayon::prelude::*;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
@@ -30,7 +31,9 @@ pub struct Indexer {
     semantic_searcher: Option<SemanticSearcher>,
     file_walker: FileWalker,
     watcher_handles: Vec<tokio::task::JoinHandle<()>>,
+    debouncer_handles: Vec<Debouncer<notify::RecommendedWatcher, FileIdMap>>,
     shutdown_tx: Option<mpsc::Sender<()>>,
+    watching: Arc<AtomicBool>,
 }
 
 impl Indexer {
@@ -60,38 +63,44 @@ impl Indexer {
             semantic_searcher,
             file_walker,
             watcher_handles: Vec::new(),
+            debouncer_handles: Vec::new(),
             shutdown_tx: None,
+            watching: Arc::new(AtomicBool::new(false)),
         })
     }
 
     pub async fn start_watching(&mut self) -> Result<()> {
-        if !self.watcher_handles.is_empty() {
+        if self.watching.load(Ordering::SeqCst) {
             warn!("File watchers already running");
             return Ok(());
         }
 
         info!(
-            "Starting file watchers for {} workspaces",
-            self.config.workspace_roots.len()
+            "Starting file watchers for {} workspaces with {}ms debounce",
+            self.config.workspace_roots.len(),
+            self.config.file_watch_debounce_ms
         );
 
         let (shutdown_tx, shutdown_rx) = mpsc::channel(1);
         let (event_tx, mut event_rx) = mpsc::channel(1000);
 
-        // Start a watcher for each workspace root
+        // Start a debounced watcher for each workspace root
         for root in &self.config.workspace_roots {
             let root = root.clone();
-            let event_tx = event_tx.clone();
+            let event_tx_clone = event_tx.clone();
+            let file_walker = FileWalker::new(self.config.clone());
+            let debounce_ms = self.config.file_watch_debounce_ms;
 
-            let handle = tokio::spawn(async move {
-                if let Err(e) =
-                    FileWalker::new(Arc::new(Config::default())).watch_directory(&root, event_tx)
-                {
+            // Create the debouncer and store it
+            match file_walker.watch_directory(&root, event_tx_clone, debounce_ms) {
+                Ok(debouncer) => {
+                    self.debouncer_handles.push(debouncer);
+                    info!("Successfully started watching {:?}", root);
+                },
+                Err(e) => {
                     error!("Failed to watch directory {:?}: {}", root, e);
-                }
-            });
-
-            self.watcher_handles.push(handle);
+                },
+            }
         }
 
         // Start event processor
@@ -125,18 +134,34 @@ impl Indexer {
 
         self.watcher_handles.push(processor_handle);
         self.shutdown_tx = Some(shutdown_tx);
+        self.watching.store(true, Ordering::SeqCst);
 
+        info!("File watching started successfully with auto-reindexing enabled");
         Ok(())
     }
 
     pub async fn stop_watching(&mut self) -> Result<()> {
+        if !self.watching.load(Ordering::SeqCst) {
+            return Ok(());
+        }
+
+        info!("Stopping file watchers");
+
+        // Send shutdown signal
         if let Some(tx) = self.shutdown_tx.take() {
             let _ = tx.send(()).await;
         }
 
+        // Wait for processor threads to finish
         for handle in self.watcher_handles.drain(..) {
             handle.await?;
         }
+
+        // Drop debouncers to stop watching
+        self.debouncer_handles.clear();
+
+        self.watching.store(false, Ordering::SeqCst);
+        info!("File watching stopped");
 
         Ok(())
     }
@@ -330,11 +355,19 @@ impl Indexer {
                 tantivy_indexer.delete_file(&path).await?;
                 tantivy_indexer.commit().await?;
 
+                // Remove from storage
+                storage.delete_file_metadata(&path).await?;
+
                 info!("Removed file from index: {:?}", path);
             },
         }
 
         Ok(())
+    }
+
+    /// Check if file watching is currently active
+    pub fn is_watching(&self) -> bool {
+        self.watching.load(Ordering::SeqCst)
     }
 
     pub async fn reindex(&self) -> Result<()> {

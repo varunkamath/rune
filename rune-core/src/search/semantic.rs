@@ -177,6 +177,7 @@ mod tests {
             indexing_threads: 1,
             enable_semantic: true,
             languages: vec!["rust".to_string()],
+            file_watch_debounce_ms: 500,
         })
     }
 
@@ -211,6 +212,7 @@ mod tests {
             indexing_threads: 1,
             enable_semantic: false, // Disable semantic to ensure no pipeline
             languages: vec![],
+            file_watch_debounce_ms: 500,
         });
 
         let storage = StorageBackend::new(&config.cache_dir).await.unwrap();
@@ -331,6 +333,7 @@ mod tests {
             indexing_threads: 1,
             enable_semantic: false,
             languages: vec![],
+            file_watch_debounce_ms: 500,
         });
 
         let storage = StorageBackend::new(&config.cache_dir).await.unwrap();

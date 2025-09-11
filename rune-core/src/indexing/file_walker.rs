@@ -1,10 +1,13 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::Result;
 use ignore::WalkBuilder;
+use notify::{Config as NotifyConfig, RecursiveMode};
+use notify_debouncer_full::{DebounceEventResult, Debouncer, FileIdMap, new_debouncer_opt};
 use tokio::sync::mpsc;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::Config;
 
@@ -85,49 +88,70 @@ impl FileWalker {
         Ok(files)
     }
 
-    pub fn watch_directory(&self, root: &Path, tx: mpsc::Sender<FileEvent>) -> Result<()> {
-        use notify::{EventKind, RecursiveMode, Watcher};
+    pub fn watch_directory(
+        &self,
+        root: &Path,
+        tx: mpsc::Sender<FileEvent>,
+        debounce_ms: u64,
+    ) -> Result<Debouncer<notify::RecommendedWatcher, FileIdMap>> {
         use std::sync::mpsc as std_mpsc;
 
         let root_path = root.to_path_buf();
         let (event_tx, event_rx) = std_mpsc::channel();
 
-        // Create a simple watcher instead of debouncer for now
-        let mut watcher =
-            notify::recommended_watcher(move |res: Result<notify::Event, notify::Error>| {
-                if let Ok(event) = res {
-                    let _ = event_tx.send(event);
+        // Create a debounced watcher with FileIdMap cache
+        let mut debouncer = new_debouncer_opt(
+            Duration::from_millis(debounce_ms),
+            None, // No tick rate
+            move |result: DebounceEventResult| {
+                if let Ok(events) = result {
+                    for event in events {
+                        let _ = event_tx.send(event);
+                    }
                 }
-            })?;
+            },
+            FileIdMap::new(),
+            NotifyConfig::default(),
+        )?;
 
-        watcher.watch(&root_path, RecursiveMode::Recursive)?;
+        // Start watching the directory
+        debouncer.watch(&root_path, RecursiveMode::Recursive)?;
 
-        // Process events in a separate thread
+        info!(
+            "Started watching directory {:?} with {}ms debounce",
+            root_path, debounce_ms
+        );
+
+        // Process debounced events in a separate thread
         std::thread::spawn(move || {
             while let Ok(event) = event_rx.recv() {
-                for path in event.paths {
+                let paths = event.paths.clone();
+                let kind = event.kind;
+
+                for path in paths {
                     if !Self::is_indexable_file(&path) {
                         continue;
                     }
 
-                    let file_event = match event.kind {
+                    use notify::EventKind;
+                    let file_event = match kind {
                         EventKind::Create(_) => FileEvent::Created(path),
                         EventKind::Modify(_) => FileEvent::Modified(path),
                         EventKind::Remove(_) => FileEvent::Deleted(path),
                         _ => continue,
                     };
 
+                    debug!("Debounced file event: {:?}", file_event);
                     if tx.blocking_send(file_event).is_err() {
+                        error!("Failed to send file event, receiver dropped");
                         break;
                     }
                 }
             }
+            info!("File watcher thread terminating");
         });
 
-        // Keep the watcher alive
-        std::mem::forget(watcher);
-
-        Ok(())
+        Ok(debouncer)
     }
 
     fn is_indexable_file(path: &Path) -> bool {

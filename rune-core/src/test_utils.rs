@@ -49,6 +49,7 @@ pub mod test_helpers {
                 "typescript".to_string(),
                 "go".to_string(),
             ],
+            file_watch_debounce_ms: 500,
         });
 
         Ok((temp_dir, workspace, config))

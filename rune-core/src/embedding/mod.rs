@@ -147,6 +147,7 @@ mod tests {
             indexing_threads: 1,
             enable_semantic: true,
             languages: vec!["rust".to_string(), "python".to_string()],
+            file_watch_debounce_ms: 500,
         })
     }
 

@@ -43,6 +43,9 @@ pub struct Config {
 
     /// Languages to support
     pub languages: Vec<String>,
+
+    /// File watching debounce delay in milliseconds
+    pub file_watch_debounce_ms: u64,
 }
 
 impl Default for Config {
@@ -65,6 +68,7 @@ impl Default for Config {
                 "java".to_string(),
                 "cpp".to_string(),
             ],
+            file_watch_debounce_ms: 500, // Default 500ms debounce
         }
     }
 }
@@ -134,6 +138,11 @@ impl RuneEngine {
     /// Get the indexer
     pub fn indexer(&self) -> &indexing::Indexer {
         &self.indexer
+    }
+
+    /// Check if file watching is active
+    pub fn is_watching(&self) -> bool {
+        self.indexer.is_watching()
     }
 
     /// Get engine statistics

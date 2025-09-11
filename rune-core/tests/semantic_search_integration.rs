@@ -263,6 +263,7 @@ async fn test_semantic_search_with_real_qdrant() {
             "javascript".to_string(),
             "go".to_string(),
         ],
+        file_watch_debounce_ms: 500,
     };
 
     // Set environment variable
@@ -413,6 +414,7 @@ async fn test_semantic_search_without_qdrant() {
         indexing_threads: 1,
         enable_semantic: false, // Disable semantic to avoid Qdrant
         languages: vec!["rust".to_string()],
+        file_watch_debounce_ms: 500,
     };
 
     // Also set environment to disable semantic and use bad URL
@@ -474,6 +476,7 @@ async fn test_hybrid_search_mode() {
             "javascript".to_string(),
             "go".to_string(),
         ],
+        file_watch_debounce_ms: 500,
     };
 
     unsafe {
@@ -551,6 +554,7 @@ async fn test_semantic_search_pagination() {
         indexing_threads: 2,
         enable_semantic: true,
         languages: vec!["rust".to_string()],
+        file_watch_debounce_ms: 500,
     };
 
     unsafe {

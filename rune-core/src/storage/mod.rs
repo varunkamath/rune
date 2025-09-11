@@ -91,6 +91,15 @@ impl StorageBackend {
         Ok(())
     }
 
+    pub async fn delete_file_metadata(&self, file_path: &Path) -> Result<()> {
+        let key = file_path.to_string_lossy().as_bytes().to_vec();
+
+        let db = self.db.write();
+        db.delete(key)?;
+
+        Ok(())
+    }
+
     pub async fn get_file_metadata(&self, file_path: &Path) -> Result<Option<FileMetadata>> {
         let key = file_path.to_string_lossy().as_bytes().to_vec();
 

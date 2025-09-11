@@ -26,6 +26,7 @@ const ConfigSchema = z.object({
   languages: z
     .array(z.string())
     .default(['rust', 'javascript', 'typescript', 'python', 'go', 'java', 'cpp']),
+  fileWatchDebounceMs: z.number().default(500),
 });
 
 // Search query schema
@@ -499,6 +500,7 @@ Example Configurations:
           indexing_threads: finalConfig.indexingThreads,
           enable_semantic: finalConfig.enableSemantic,
           languages: finalConfig.languages,
+          file_watch_debounce_ms: finalConfig.fileWatchDebounceMs,
         })
       );
 
@@ -535,6 +537,7 @@ Example Configurations:
         'java',
         'cpp',
       ],
+      fileWatchDebounceMs: parseInt(process.env.RUNE_FILE_WATCH_DEBOUNCE_MS ?? '500'),
     };
   }
 

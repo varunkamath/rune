@@ -85,6 +85,7 @@ pub fn setup_benchmark_workspace(size: DatasetSize) -> (TempDir, PathBuf, Arc<Co
             "typescript".to_string(),
             "go".to_string(),
         ],
+        file_watch_debounce_ms: 500,
     });
 
     (temp_dir, workspace, config)
