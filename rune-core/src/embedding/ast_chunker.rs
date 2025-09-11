@@ -58,7 +58,7 @@ struct ChunkingQueries {
     function_query: Query,
     class_query: Query,
     import_query: Query,
-    module_query: Option<Query>,
+    _module_query: Option<Query>, // Kept for potential future module detection
 }
 
 impl AstChunker {
@@ -160,7 +160,7 @@ impl AstChunker {
                     "#,
                 )?,
                 import_query: Query::new(&ts_language, r#"(use_declaration) @import"#)?,
-                module_query: Some(Query::new(&ts_language, r#"(mod_item) @module"#)?),
+                _module_query: Some(Query::new(&ts_language, r#"(mod_item) @module"#)?),
             },
             Language::Python => ChunkingQueries {
                 function_query: Query::new(
@@ -187,7 +187,7 @@ impl AstChunker {
                     (import_from_statement) @import
                     "#,
                 )?,
-                module_query: None,
+                _module_query: None,
             },
             Language::JavaScript | Language::TypeScript => ChunkingQueries {
                 function_query: Query::new(
@@ -223,7 +223,7 @@ impl AstChunker {
                     (export_statement) @export
                     "#,
                 )?,
-                module_query: None,
+                _module_query: None,
             },
             Language::Go => ChunkingQueries {
                 function_query: Query::new(
@@ -251,7 +251,7 @@ impl AstChunker {
                     "#,
                 )?,
                 import_query: Query::new(&ts_language, r#"(import_declaration) @import"#)?,
-                module_query: Some(Query::new(&ts_language, r#"(package_clause) @package"#)?),
+                _module_query: Some(Query::new(&ts_language, r#"(package_clause) @package"#)?),
             },
             _ => {
                 // For other languages, create basic queries
@@ -287,12 +287,12 @@ impl AstChunker {
                 for capture in match_.captures {
                     units.push(SemanticUnit {
                         kind: SemanticUnitKind::Import,
-                        name: None,
+                        _name: None,
                         start_byte: capture.node.start_byte(),
                         end_byte: capture.node.end_byte(),
                         start_line: capture.node.start_position().row + 1,
                         end_line: capture.node.end_position().row + 1,
-                        parent: None,
+                        _parent: None,
                     });
                 }
             }
@@ -309,12 +309,12 @@ impl AstChunker {
                     let name = extract_node_text(capture.node, source, "name");
                     units.push(SemanticUnit {
                         kind: SemanticUnitKind::Function,
-                        name,
+                        _name: name,
                         start_byte: capture.node.start_byte(),
                         end_byte: capture.node.end_byte(),
                         start_line: capture.node.start_position().row + 1,
                         end_line: capture.node.end_position().row + 1,
-                        parent: None,
+                        _parent: None,
                     });
                 }
             }
@@ -338,12 +338,12 @@ impl AstChunker {
                     let name = extract_node_text(capture.node, source, "name");
                     units.push(SemanticUnit {
                         kind,
-                        name,
+                        _name: name,
                         start_byte: capture.node.start_byte(),
                         end_byte: capture.node.end_byte(),
                         start_line: capture.node.start_position().row + 1,
                         end_line: capture.node.end_position().row + 1,
-                        parent: None,
+                        _parent: None,
                     });
                 }
             }
@@ -535,23 +535,26 @@ impl ChunkBuilder {
 #[derive(Debug, Clone)]
 struct SemanticUnit {
     kind: SemanticUnitKind,
-    name: Option<String>,
+    _name: Option<String>, // Kept for future semantic analysis
     start_byte: usize,
     end_byte: usize,
     start_line: usize,
     end_line: usize,
-    parent: Option<Box<SemanticUnit>>,
+    _parent: Option<Box<SemanticUnit>>, // Kept for future hierarchical analysis
 }
 
 #[derive(Debug, Clone, PartialEq)]
 enum SemanticUnitKind {
     Function,
+    #[allow(dead_code)] // Will be used when method extraction is enhanced
     Method,
     Class,
     Struct,
     Enum,
     Trait,
+    #[allow(dead_code)] // Will be used for TypeScript/Java interface support
     Interface,
+    #[allow(dead_code)] // Will be used for module-level chunking
     Module,
     Import,
 }

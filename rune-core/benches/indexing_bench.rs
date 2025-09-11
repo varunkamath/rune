@@ -10,30 +10,23 @@ fn benchmark_file_indexing(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("indexing/files");
 
-    for size in [utils::DatasetSize::Small, utils::DatasetSize::Medium] {
-        let size_name = match size {
-            utils::DatasetSize::Small => "small",
-            utils::DatasetSize::Medium => "medium",
-            _ => "large",
-        };
+    // Only benchmark with Small dataset to keep runtime reasonable
+    let size = utils::DatasetSize::Small;
 
-        group.bench_with_input(
-            BenchmarkId::new("index_files", size_name),
-            &size,
-            |b, size| {
-                b.iter(|| {
-                    rt.block_on(async {
-                        let (_temp, _workspace, config) = utils::setup_benchmark_workspace(*size);
-                        let storage = utils::create_storage(&config).await;
+    // Setup workspace once outside the benchmark
+    let (_temp, _workspace, config) = utils::setup_benchmark_workspace(size);
 
-                        let indexer = Indexer::new(config.clone(), storage).await.unwrap();
-                        let _: () = indexer.index_workspaces().await.unwrap();
-                        black_box(());
-                    });
-                });
-            },
-        );
-    }
+    group.bench_function("index_files_small", |b| {
+        b.iter(|| {
+            rt.block_on(async {
+                // Create fresh storage for each iteration
+                let storage = utils::create_storage(&config).await;
+                let indexer = Indexer::new(config.clone(), storage).await.unwrap();
+                let _: () = indexer.index_workspaces().await.unwrap();
+                black_box(());
+            });
+        });
+    });
 
     group.finish();
 }

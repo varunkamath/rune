@@ -195,33 +195,6 @@ impl FuzzyMatcher {
         matches
     }
 
-    /// Find the byte position of a word in the original text
-    fn find_word_position(&self, text: &str, word_index: usize) -> usize {
-        let mut current_word = 0;
-        let mut position = 0;
-
-        for (i, ch) in text.char_indices() {
-            if ch.is_whitespace() {
-                if position > 0
-                    && !text
-                        .chars()
-                        .nth(position - 1)
-                        .unwrap_or(' ')
-                        .is_whitespace()
-                {
-                    current_word += 1;
-                }
-            } else if current_word == word_index
-                && (i == 0 || text.chars().nth(i - 1).unwrap_or(' ').is_whitespace())
-            {
-                return i;
-            }
-            position = i;
-        }
-
-        0
-    }
-
     /// Check if a single word is a fuzzy match for the query
     pub fn is_fuzzy_match(&self, query: &str, word: &str) -> bool {
         if !self.config.enabled {

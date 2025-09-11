@@ -1,5 +1,3 @@
-#![allow(dead_code)] // TODO: Remove when implementation is complete
-
 pub mod cache;
 pub mod error;
 pub mod indexing;
@@ -75,6 +73,7 @@ impl Default for Config {
 
 /// Main engine for the Rune code search system
 pub struct RuneEngine {
+    #[allow(dead_code)]
     config: Arc<Config>,
     search_engine: search::SearchEngine,
     indexer: indexing::Indexer,

@@ -13,7 +13,7 @@ use super::language_detector::LanguageDetector;
 use super::symbol_extractor::SymbolExtractor;
 
 pub struct TantivyIndexer {
-    index: Index,
+    _index: Index, // Kept for directory lock ownership
     schema: Schema,
     writer: Option<Arc<RwLock<IndexWriter>>>,
     reader: IndexReader,
@@ -73,7 +73,7 @@ impl TantivyIndexer {
             .try_into()?;
 
         Ok(Self {
-            index,
+            _index: index,
             schema,
             writer,
             reader,
@@ -305,7 +305,7 @@ mod tests {
 
         // Search for the document
         let query_parser =
-            tantivy::query::QueryParser::for_index(&indexer.index, vec![indexer.content_field]);
+            tantivy::query::QueryParser::for_index(&indexer._index, vec![indexer.content_field]);
         let query = query_parser.parse_query("main").unwrap();
 
         let results = indexer.search_documents(query.as_ref(), 10).await.unwrap();

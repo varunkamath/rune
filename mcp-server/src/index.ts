@@ -197,18 +197,27 @@ Interpretation Guide:
           name: 'reindex',
           description: `Force re-indexing of code repositories to update the search index with latest changes.
 
+⚠️ IMPORTANT: Rune automatically watches your files and reindexes changes in real-time. You typically DO NOT need to use this tool during normal development. Auto-reindexing handles file creates, updates, and deletes automatically with smart debouncing.
+
 This tool triggers a fresh scan of your codebase, updating all search indices including text, symbol, and semantic embeddings.
 
-When to use this tool:
-- After significant code changes outside of the IDE
-- When search results seem outdated or incorrect
-- After changing gitignore rules or file filters
-- Following a git pull/merge with many changes
-- When switching branches with different code structure
-- After adding new repositories to the workspace
-- To clear corrupted index data
+When to ACTUALLY use this tool (rare cases):
+- Initial setup when first configuring Rune on a new codebase
+- After bulk operations done outside Rune's file watching (e.g., git checkout different branch)
+- When you suspect index corruption or missing files
+- After changing .gitignore rules or file filters
+- If auto-reindexing was disabled and you want to catch up
+- To force a complete rebuild of all indices
 
-Indexing Process:
+Auto-Reindexing Features (runs automatically):
+- Watches all workspace directories for changes
+- Debounces rapid changes (default 500ms delay)
+- Only reindexes actually changed files
+- Handles file creates, modifies, and deletes
+- Maintains index consistency in real-time
+- No manual intervention needed
+
+Indexing Process (when manually triggered):
 1. Scans all files in workspace directories
 2. Respects .gitignore and configured file filters
 3. Extracts text content for literal/regex search
@@ -218,23 +227,21 @@ Indexing Process:
 7. Clears outdated cache entries
 
 Performance Considerations:
-- Incremental by default (only changed files)
-- Full reindex with empty repositories parameter
-- Typical speed: ~1000 files/second
+- Auto-reindexing: Near-instant for individual file changes
+- Manual full reindex: ~1000 files/second
 - Semantic indexing slower due to embedding generation
-- Runs in background, search available during reindex
+- Runs in background, search remains available
 
-Usage Examples:
+Usage Examples (when needed):
 - Full reindex: repositories=[]
 - Specific repo: repositories=["/path/to/repo"]
 - Multiple repos: repositories=["/repo1", "/repo2"]
 
 Best Practices:
-1. Let automatic incremental indexing handle most updates
-2. Only force full reindex when experiencing issues
-3. Monitor index_status during reindexing
-4. Avoid reindexing during active development
-5. Consider disabling semantic if reindexing is too slow`,
+1. Trust auto-reindexing for day-to-day development
+2. Only force reindex if you notice search issues
+3. Use index_status to verify auto-reindexing is active
+4. Manual reindex mainly useful for initial setup or recovery`,
           inputSchema: {
             type: 'object',
             properties: {
@@ -550,17 +557,17 @@ Example Configurations:
   }
 }
 
-// Debug stdout writes to find pollution source
+// Filter stdout to ensure only JSON-RPC messages are sent to the MCP client
 const originalStdoutWrite = process.stdout.write;
 process.stdout.write = function (
   chunk: string | Uint8Array,
   ...args: Parameters<typeof process.stdout.write> extends [unknown, ...infer R] ? R : never[]
 ): boolean {
-  // Log any non-JSON writes to stderr for debugging
+  // Silently drop any non-JSON writes to keep the protocol clean
   const str = chunk?.toString() ?? '';
   if (str && !str.startsWith('{') && !str.startsWith('[')) {
-    console.error('DEBUG: Non-JSON stdout write detected:', JSON.stringify(str.substring(0, 100)));
-    console.error('DEBUG: Stack trace:', new Error().stack);
+    // Non-JSON output is dropped to prevent protocol corruption
+    return true;
   }
   return originalStdoutWrite.call(process.stdout, chunk, ...args);
 } as typeof process.stdout.write;

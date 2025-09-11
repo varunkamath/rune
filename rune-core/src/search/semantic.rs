@@ -8,8 +8,8 @@ use crate::{Config, embedding::EmbeddingPipeline, storage::StorageBackend};
 
 #[derive(Clone)]
 pub struct SemanticSearcher {
-    config: Arc<Config>,
-    storage: StorageBackend,
+    _config: Arc<Config>,     // Kept for potential future use
+    _storage: StorageBackend, // Kept for potential future use
     pipeline: Option<Arc<EmbeddingPipeline>>,
 }
 
@@ -40,8 +40,8 @@ impl SemanticSearcher {
         };
 
         Ok(Self {
-            config,
-            storage,
+            _config: config,
+            _storage: storage,
             pipeline,
         })
     }
@@ -253,8 +253,8 @@ mod tests {
         // We need to test synchronously, so we'll test the helper method directly
         // by creating a minimal searcher
         let searcher = SemanticSearcher {
-            config,
-            storage,
+            _config: config,
+            _storage: storage,
             pipeline: None,
         };
 
@@ -271,8 +271,8 @@ mod tests {
         let config = create_test_config();
         let storage = StorageBackend::new(&config.cache_dir).await.unwrap();
         let searcher = SemanticSearcher {
-            config,
-            storage,
+            _config: config,
+            _storage: storage,
             pipeline: None,
         };
 

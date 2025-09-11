@@ -84,9 +84,9 @@ pub struct SearchResponse {
 }
 
 pub struct SearchEngine {
-    config: Arc<Config>,
-    storage: StorageBackend,
-    tantivy_indexer: Arc<TantivyIndexer>,
+    _config: Arc<Config>,                  // Kept for sub-searcher initialization
+    _storage: StorageBackend,              // Kept for sub-searcher initialization
+    _tantivy_indexer: Arc<TantivyIndexer>, // Kept for sub-searcher initialization
     literal_searcher: literal::LiteralSearcher,
     regex_searcher: regex::RegexSearcher,
     symbol_searcher: symbol::SymbolSearcher,
@@ -131,9 +131,9 @@ impl SearchEngine {
         ));
 
         Ok(Self {
-            config,
-            storage,
-            tantivy_indexer,
+            _config: config,
+            _storage: storage,
+            _tantivy_indexer: tantivy_indexer,
             literal_searcher,
             regex_searcher,
             symbol_searcher,

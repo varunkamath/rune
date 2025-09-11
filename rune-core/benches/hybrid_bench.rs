@@ -12,7 +12,7 @@ fn benchmark_rrf_fusion(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("hybrid/rrf");
 
-    let (_temp, _workspace, config) = utils::setup_benchmark_workspace(utils::DatasetSize::Medium);
+    let (_temp, _workspace, config) = utils::setup_benchmark_workspace(utils::DatasetSize::Small);
 
     // Setup outside of benchmark loop to avoid nested runtime
     let storage = rt.block_on(async {
@@ -111,7 +111,7 @@ fn benchmark_hybrid_vs_individual_modes(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("hybrid/comparison");
 
-    let (_temp, _workspace, config) = utils::setup_benchmark_workspace(utils::DatasetSize::Medium);
+    let (_temp, _workspace, config) = utils::setup_benchmark_workspace(utils::DatasetSize::Small);
 
     // Setup outside of benchmark loop
     let storage = rt.block_on(async {

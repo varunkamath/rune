@@ -18,7 +18,7 @@ use crate::Config;
 
 /// Manages Qdrant vector database operations
 pub struct QdrantManager {
-    config: Arc<Config>,
+    _config: Arc<Config>, // Kept for potential future configuration needs
     #[cfg(feature = "semantic")]
     client: Option<Qdrant>,
     collection_name: String,
@@ -45,7 +45,7 @@ impl QdrantManager {
             if !enable_semantic {
                 info!("Semantic search disabled by configuration");
                 return Ok(Self {
-                    config,
+                    _config: config,
                     client: None,
                     collection_name,
                     quantization_config: QuantizationConfig::default(),
@@ -100,7 +100,7 @@ impl QdrantManager {
                     {
                         error!("[QDRANT] Failed to initialize collection: {}", e);
                         return Ok(Self {
-                            config,
+                            _config: config,
                             client: None,
                             collection_name,
                             quantization_config,
@@ -108,7 +108,7 @@ impl QdrantManager {
                     }
 
                     Ok(Self {
-                        config,
+                        _config: config,
                         client: Some(client),
                         collection_name,
                         quantization_config,
@@ -122,7 +122,7 @@ impl QdrantManager {
                         "[QDRANT] Please ensure Qdrant is running: docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant"
                     );
                     Ok(Self {
-                        config,
+                        _config: config,
                         client: None,
                         collection_name,
                         quantization_config: QuantizationConfig::default(),
@@ -135,7 +135,7 @@ impl QdrantManager {
         {
             debug!("Semantic feature not enabled at compile time");
             Ok(Self {
-                config,
+                _config: config,
                 collection_name,
                 quantization_config: QuantizationConfig::default(),
             })

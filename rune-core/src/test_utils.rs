@@ -263,6 +263,7 @@ date3 = "2023-06-30"
     }
 
     /// Assert that search results contain expected content
+    #[allow(dead_code)] // Kept for future test development
     pub fn assert_results_contain(results: &[SearchResult], expected_content: &[&str]) {
         for content in expected_content {
             assert!(
@@ -274,6 +275,7 @@ date3 = "2023-06-30"
     }
 
     /// Assert that all results are from specific file extensions
+    #[allow(dead_code)] // Kept for future test development
     pub fn assert_results_file_type(results: &[SearchResult], extension: &str) {
         for result in results {
             assert_eq!(
@@ -286,6 +288,7 @@ date3 = "2023-06-30"
     }
 
     /// Create a basic search query for testing
+    #[allow(dead_code)] // Kept for future test development
     pub fn create_test_query(query: &str, mode: SearchMode) -> SearchQuery {
         SearchQuery {
             query: query.to_string(),

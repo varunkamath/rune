@@ -15,19 +15,19 @@ echo "function testFunction() { return 42; }" > $TEST_DIR/initial.js
 # Function to call MCP server with proper initialization
 call_mcp_with_init() {
     local search_json="$1"
-    
+
     # Create a temporary file for the JSON-RPC sequence
     local temp_file=$(mktemp)
-    
+
     # Write initialization and search request
     cat > "$temp_file" << EOF
 {"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"0.1.0","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}},"id":0}
 $search_json
 EOF
-    
+
     # Send both requests and extract the search result
     cat "$temp_file" | RUNE_WORKSPACE="$TEST_DIR" node mcp-server/dist/index.js 2>/dev/null | tail -n 1
-    
+
     rm -f "$temp_file"
 }
 

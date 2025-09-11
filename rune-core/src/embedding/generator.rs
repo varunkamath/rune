@@ -14,7 +14,7 @@ use crate::Config;
 
 /// Manages embedding generation using ONNX Runtime with caching and batch processing
 pub struct EmbeddingGenerator {
-    config: Arc<Config>,
+    _config: Arc<Config>, // Kept for potential future configuration needs
     session: Option<Arc<Mutex<Session>>>,
     tokenizer: Option<Arc<Tokenizer>>,
     /// Cache embeddings by content hash to avoid recomputation
@@ -32,7 +32,7 @@ impl EmbeddingGenerator {
             Ok((session, tokenizer)) => {
                 info!("Successfully initialized all-MiniLM-L6-v2 model (384 dimensions)");
                 Ok(Self {
-                    config,
+                    _config: config,
                     session: Some(Arc::new(Mutex::new(session))),
                     tokenizer: Some(Arc::new(tokenizer)),
                     cache,
@@ -46,7 +46,7 @@ impl EmbeddingGenerator {
                     e
                 );
                 Ok(Self {
-                    config,
+                    _config: config,
                     session: None,
                     tokenizer: None,
                     cache,

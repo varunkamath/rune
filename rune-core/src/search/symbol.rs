@@ -8,8 +8,8 @@ use crate::{Config, indexing::tantivy_indexer::TantivyIndexer, storage::StorageB
 
 #[derive(Clone)]
 pub struct SymbolSearcher {
-    config: Arc<Config>,
-    storage: StorageBackend,
+    _config: Arc<Config>,     // Kept for potential future use
+    _storage: StorageBackend, // Kept for potential future use
     tantivy_indexer: Arc<TantivyIndexer>,
 }
 
@@ -20,8 +20,8 @@ impl SymbolSearcher {
         tantivy_indexer: Arc<TantivyIndexer>,
     ) -> Result<Self> {
         Ok(Self {
-            config,
-            storage,
+            _config: config,
+            _storage: storage,
             tantivy_indexer,
         })
     }

@@ -12,8 +12,8 @@ fn benchmark_literal_search(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("search/literal");
 
-    // Setup once for all benchmarks in this group
-    let (_temp, _workspace, config) = utils::setup_benchmark_workspace(utils::DatasetSize::Medium);
+    // Setup once for all benchmarks in this group - use Small dataset for faster benchmarks
+    let (_temp, _workspace, config) = utils::setup_benchmark_workspace(utils::DatasetSize::Small);
 
     // Do all async setup outside the benchmark loop
     let storage = rt.block_on(async {

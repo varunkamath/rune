@@ -13,8 +13,8 @@ use crate::{Config, indexing::tantivy_indexer::TantivyIndexer, storage::StorageB
 
 #[derive(Clone)]
 pub struct LiteralSearcher {
-    config: Arc<Config>,
-    storage: StorageBackend,
+    _config: Arc<Config>,     // Kept for potential future use
+    _storage: StorageBackend, // Kept for potential future use
     tantivy_indexer: Arc<TantivyIndexer>,
     fuzzy_matcher: FuzzyMatcher,
 }
@@ -27,8 +27,8 @@ impl LiteralSearcher {
     ) -> Result<Self> {
         let fuzzy_matcher = FuzzyMatcher::with_config(FuzzyConfig::default());
         Ok(Self {
-            config,
-            storage,
+            _config: config,
+            _storage: storage,
             tantivy_indexer,
             fuzzy_matcher,
         })

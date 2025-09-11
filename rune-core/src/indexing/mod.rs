@@ -233,49 +233,94 @@ impl Indexer {
             // Index all files in the batch
             for (file_path, repo, content) in results {
                 if !content.is_empty() {
-                    if let Err(e) = tantivy_indexer
-                        .index_file(&file_path, &repo, &content)
-                        .await
-                    {
-                        error!("Failed to index file {:?}: {}", file_path, e);
-                    }
+                    // Compute hash of the content
+                    let content_hash = blake3::hash(content.as_bytes()).to_string();
 
-                    // Index for semantic search if enabled
-                    #[cfg(feature = "semantic")]
-                    if let Some(ref semantic_searcher) = self.semantic_searcher
-                        && let Err(e) = semantic_searcher
-                            .index_file(&file_path.to_string_lossy(), &content)
-                            .await
-                    {
-                        error!(
-                            "Failed to index file for semantic search {:?}: {}",
-                            file_path, e
-                        );
-                    }
-
-                    // Store metadata
-                    let metadata = crate::storage::FileMetadata {
-                        path: file_path.clone(),
-                        size: content.len() as u64,
-                        modified: std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap()
-                            .as_secs(),
-                        language: language_detector::LanguageDetector::detect(
-                            &file_path,
-                            Some(&content),
-                        )
-                        .to_str()
-                        .to_string(),
-                        hash: blake3::hash(content.as_bytes()).to_string(),
-                        indexed_at: std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap()
-                            .as_secs(),
+                    // Check if file has changed by comparing hashes
+                    let should_index = match storage.get_file_metadata(&file_path).await {
+                        Ok(Some(existing_metadata)) => {
+                            // Only index if the hash has changed
+                            if existing_metadata.hash != content_hash {
+                                debug!("File {:?} has changed, reindexing", file_path);
+                                true
+                            } else {
+                                debug!("File {:?} unchanged, skipping reindex", file_path);
+                                // Update only the indexed_at timestamp
+                                let mut updated_metadata = existing_metadata;
+                                updated_metadata.indexed_at = std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap()
+                                    .as_secs();
+                                if let Err(e) = storage
+                                    .store_file_metadata(&file_path, updated_metadata)
+                                    .await
+                                {
+                                    error!(
+                                        "Failed to update metadata timestamp for {:?}: {}",
+                                        file_path, e
+                                    );
+                                }
+                                false
+                            }
+                        },
+                        Ok(None) => {
+                            debug!("File {:?} is new, indexing", file_path);
+                            true // New file, needs indexing
+                        },
+                        Err(e) => {
+                            warn!(
+                                "Failed to get metadata for {:?}: {}, indexing anyway",
+                                file_path, e
+                            );
+                            true // Error getting metadata, index to be safe
+                        },
                     };
 
-                    if let Err(e) = storage.store_file_metadata(&file_path, metadata).await {
-                        error!("Failed to store metadata for {:?}: {}", file_path, e);
+                    if should_index {
+                        if let Err(e) = tantivy_indexer
+                            .index_file(&file_path, &repo, &content)
+                            .await
+                        {
+                            error!("Failed to index file {:?}: {}", file_path, e);
+                        }
+
+                        // Index for semantic search if enabled
+                        #[cfg(feature = "semantic")]
+                        if let Some(ref semantic_searcher) = self.semantic_searcher
+                            && let Err(e) = semantic_searcher
+                                .index_file(&file_path.to_string_lossy(), &content)
+                                .await
+                        {
+                            error!(
+                                "Failed to index file for semantic search {:?}: {}",
+                                file_path, e
+                            );
+                        }
+
+                        // Store metadata with new hash
+                        let metadata = crate::storage::FileMetadata {
+                            path: file_path.clone(),
+                            size: content.len() as u64,
+                            modified: std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_secs(),
+                            language: language_detector::LanguageDetector::detect(
+                                &file_path,
+                                Some(&content),
+                            )
+                            .to_str()
+                            .to_string(),
+                            hash: content_hash,
+                            indexed_at: std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_secs(),
+                        };
+
+                        if let Err(e) = storage.store_file_metadata(&file_path, metadata).await {
+                            error!("Failed to store metadata for {:?}: {}", file_path, e);
+                        }
                     }
                 }
             }
@@ -305,50 +350,92 @@ impl Indexer {
                 // Read file content
                 let content = tokio::fs::read_to_string(&path).await?;
 
-                // Get repository name
-                let repository = path
-                    .parent()
-                    .and_then(|p| p.file_name())
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("unknown");
+                // Compute hash of the content
+                let content_hash = blake3::hash(content.as_bytes()).to_string();
 
-                // Index file
-                tantivy_indexer
-                    .index_file(&path, repository, &content)
-                    .await?;
-
-                // Index for semantic search if enabled
-                #[cfg(feature = "semantic")]
-                if let Some(searcher) = semantic_searcher
-                    && let Err(e) = searcher.index_file(&path.to_string_lossy(), &content).await
-                {
-                    error!("Failed to index file for semantic search {:?}: {}", path, e);
-                }
-
-                // Store metadata
-                let metadata = crate::storage::FileMetadata {
-                    path: path.clone(),
-                    size: content.len() as u64,
-                    modified: std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
-                        .as_secs(),
-                    language: language_detector::LanguageDetector::detect(&path, Some(&content))
-                        .to_str()
-                        .to_string(),
-                    hash: blake3::hash(content.as_bytes()).to_string(),
-                    indexed_at: std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
-                        .as_secs(),
+                // Check if file has actually changed by comparing hashes
+                let should_index = match storage.get_file_metadata(&path).await {
+                    Ok(Some(existing_metadata)) => {
+                        // Only index if the hash has changed
+                        if existing_metadata.hash != content_hash {
+                            debug!("File {:?} content changed, reindexing", path);
+                            true
+                        } else {
+                            debug!("File {:?} content unchanged, skipping reindex", path);
+                            // Update only the indexed_at timestamp
+                            let mut updated_metadata = existing_metadata;
+                            updated_metadata.indexed_at = std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_secs();
+                            storage.store_file_metadata(&path, updated_metadata).await?;
+                            false
+                        }
+                    },
+                    Ok(None) => {
+                        debug!("File {:?} is new, indexing", path);
+                        true // New file, needs indexing
+                    },
+                    Err(e) => {
+                        warn!(
+                            "Failed to get metadata for {:?}: {}, indexing anyway",
+                            path, e
+                        );
+                        true // Error getting metadata, index to be safe
+                    },
                 };
 
-                storage.store_file_metadata(&path, metadata).await?;
+                if should_index {
+                    // Get repository name
+                    let repository = path
+                        .parent()
+                        .and_then(|p| p.file_name())
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("unknown");
 
-                // Commit changes
-                tantivy_indexer.commit().await?;
+                    // Index file
+                    tantivy_indexer
+                        .index_file(&path, repository, &content)
+                        .await?;
 
-                info!("Indexed file: {:?}", path);
+                    // Index for semantic search if enabled
+                    #[cfg(feature = "semantic")]
+                    if let Some(searcher) = semantic_searcher
+                        && let Err(e) = searcher.index_file(&path.to_string_lossy(), &content).await
+                    {
+                        error!("Failed to index file for semantic search {:?}: {}", path, e);
+                    }
+
+                    // Store metadata with new hash
+                    let metadata = crate::storage::FileMetadata {
+                        path: path.clone(),
+                        size: content.len() as u64,
+                        modified: std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap()
+                            .as_secs(),
+                        language: language_detector::LanguageDetector::detect(
+                            &path,
+                            Some(&content),
+                        )
+                        .to_str()
+                        .to_string(),
+                        hash: content_hash,
+                        indexed_at: std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap()
+                            .as_secs(),
+                    };
+
+                    storage.store_file_metadata(&path, metadata).await?;
+
+                    // Commit changes
+                    tantivy_indexer.commit().await?;
+
+                    info!("Indexed file: {:?}", path);
+                } else {
+                    debug!("Skipped unchanged file: {:?}", path);
+                }
             },
             FileEvent::Deleted(path) => {
                 // Remove from index
