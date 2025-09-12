@@ -94,7 +94,7 @@ When to use this tool:
 - Refactoring by finding all instances of a pattern
 
 Search Modes Explained:
-- literal: Fast exact text search with fuzzy matching for typos (e.g., 'functoin' finds 'function')
+- literal: Searches for documents containing ALL query terms (not as exact phrase). Best for single terms or function names. Avoid multiple unrelated terms.
 - regex: Pattern matching with full regex support for complex searches
 - symbol: AST-based search for language constructs (functions, classes, variables)
 - semantic: AI-powered search understanding code meaning, not just text
@@ -119,11 +119,17 @@ Examples:
 - Find TODO comments: query="TODO|FIXME", mode="regex"
 - Find React hooks: query="use[A-Z]\\w+", mode="regex", filePatterns=["*.tsx", "*.jsx"]
 - Find database connections: query="database connection pooling", mode="hybrid"
-- Find similar implementations: query="quicksort algorithm", mode="semantic"`,
+- Find similar implementations: query="quicksort algorithm", mode="semantic"
+- Find specific function: query="getUserById", mode="literal" (single term works best)
+- AVOID: query="mountPath /opt/kafka /data", mode="literal" (multiple unrelated terms rarely match)`,
           inputSchema: {
             type: 'object',
             properties: {
-              query: { type: 'string', description: 'Search query' },
+              query: {
+                type: 'string',
+                description:
+                  'Search query. For literal mode: use single terms or exact phrases, not multiple unrelated terms',
+              },
               mode: {
                 type: 'string',
                 enum: ['literal', 'regex', 'symbol', 'semantic', 'hybrid'],
