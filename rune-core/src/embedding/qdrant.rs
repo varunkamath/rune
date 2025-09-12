@@ -53,13 +53,12 @@ impl QdrantManager {
             }
 
             // Try multiple connection strategies with retry logic
+            // Note: Rust qdrant-client only supports gRPC, not REST API
             let connection_attempts = [
                 // Primary: IPv4 explicit gRPC port
                 ("http://127.0.0.1:6334", "IPv4 gRPC"),
-                // Fallback 1: localhost gRPC (might resolve to IPv6)
+                // Fallback: localhost gRPC (might resolve to IPv6)
                 ("http://localhost:6334", "localhost gRPC"),
-                // Fallback 2: IPv4 REST API port (if gRPC is having issues)
-                ("http://127.0.0.1:6333", "IPv4 REST"),
             ];
 
             // Allow override via environment variable
