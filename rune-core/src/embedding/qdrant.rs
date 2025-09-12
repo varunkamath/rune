@@ -28,7 +28,11 @@ pub struct QdrantManager {
 impl QdrantManager {
     pub async fn new(config: Arc<Config>) -> Result<Self> {
         // Generate collection name based on workspace path hash
-        let workspace_hash = blake3::hash(config.workspace_dir.as_bytes())
+        // Use RUNE_WORKSPACE_ID if set (for Docker), otherwise hash the workspace_dir
+        let workspace_identifier =
+            std::env::var("RUNE_WORKSPACE_ID").unwrap_or_else(|_| config.workspace_dir.clone());
+
+        let workspace_hash = blake3::hash(workspace_identifier.as_bytes())
             .to_hex()
             .chars()
             .take(16)

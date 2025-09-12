@@ -4,13 +4,15 @@
     "run",
     "--rm",
     "-i",
+    "--entrypoint",
+    "/usr/local/bin/start-mcp",
     "-v",
     "${workspaceFolder}:/workspace:ro",
     "-v",
     "${HOME}/.rune:/data",
-    "rune-mcp:latest",
-    "node",
-    "/app/dist/index.js"
+    "-e",
+    "RUNE_WORKSPACE_ID=${workspaceFolder}",
+    "rune-mcp:latest"
   ],
   "transport": "stdio"
 }

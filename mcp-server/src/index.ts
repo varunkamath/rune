@@ -41,7 +41,7 @@ const SearchQuerySchema = z.object({
 
 class RuneMcpServer {
   private server: Server;
-  private bridge: RuneBridgeInstance;
+  public bridge: RuneBridgeInstance; // Made public for shutdown handler
   private initialized: boolean = false;
 
   constructor() {
@@ -530,14 +530,41 @@ Example Configurations:
     }
   }
 
+  private getWorkspaceId(workspacePath: string): string {
+    // Use crypto to create a short, unique hash of the workspace path
+    const crypto = require('crypto');
+    const hash = crypto.createHash('sha256').update(workspacePath).digest('hex');
+    // Use first 16 chars for reasonable uniqueness without being too long
+    return hash.substring(0, 16);
+  }
+
   private getConfigFromEnv(): z.infer<typeof ConfigSchema> {
     const workspaceRoots = process.env.RUNE_WORKSPACE
       ? [process.env.RUNE_WORKSPACE]
       : [process.cwd()];
 
+    // Use RUNE_WORKSPACE_ID if set (from Docker), otherwise use the actual workspace path
+    const workspaceForId = process.env.RUNE_WORKSPACE_ID ?? workspaceRoots[0];
+    const workspaceId = this.getWorkspaceId(workspaceForId);
+    const defaultCacheDir = process.env.RUNE_CACHE_DIR ?? '.rune_cache';
+
+    // If running in Docker with shared cache, create workspace-specific subdirectory
+    const cacheDir =
+      process.env.RUNE_SHARED_CACHE === 'true'
+        ? `${defaultCacheDir}/${workspaceId}`
+        : defaultCacheDir;
+
+    // Log the cache directory for debugging
+    console.error(`Using cache directory: ${cacheDir} (workspace: ${workspaceForId})`);
+
+    // Also set RUNE_WORKSPACE_ID for the Rust code to use
+    if (!process.env.RUNE_WORKSPACE_ID) {
+      process.env.RUNE_WORKSPACE_ID = workspaceForId;
+    }
+
     return {
       workspaceRoots,
-      cacheDir: process.env.RUNE_CACHE_DIR ?? '.rune_cache',
+      cacheDir,
       maxFileSize: parseInt(process.env.RUNE_MAX_FILE_SIZE ?? '10485760'),
       indexingThreads: parseInt(process.env.RUNE_INDEXING_THREADS ?? '4'),
       enableSemantic: process.env.RUNE_ENABLE_SEMANTIC !== 'false',
@@ -580,6 +607,37 @@ process.stdout.write = function (
 
 // Main entry point
 const server = new RuneMcpServer();
+
+// Graceful shutdown handlers
+const shutdown = async (signal: string) => {
+  console.error(`Received ${signal}, shutting down gracefully...`);
+  try {
+    // Stop the bridge to ensure RocksDB is properly closed
+    await server.bridge.stop();
+    console.error('Bridge stopped successfully');
+  } catch (error) {
+    console.error('Error during shutdown:', error);
+  }
+  process.exit(0);
+};
+
+// Register signal handlers
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGHUP', () => shutdown('SIGHUP'));
+
+// Handle uncaught exceptions
+process.on('uncaughtException', async (error) => {
+  console.error('Uncaught exception:', error);
+  await shutdown('uncaughtException');
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', async (reason, promise) => {
+  console.error('Unhandled rejection at:', promise, 'reason:', reason);
+  await shutdown('unhandledRejection');
+});
+
 server.run().catch((error) => {
   console.error('Fatal error:', error);
   process.exit(1);

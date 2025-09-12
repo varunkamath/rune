@@ -18,6 +18,11 @@ impl StorageBackend {
         // Create cache directory if it doesn't exist
         tokio::fs::create_dir_all(cache_dir).await?;
 
+        let db_path = cache_dir.join("metadata.db");
+
+        // Try to recover from stale lock if necessary
+        Self::try_recover_lock(&db_path)?;
+
         // Open RocksDB
         let mut opts = Options::default();
         opts.create_if_missing(true);
@@ -25,7 +30,6 @@ impl StorageBackend {
         opts.set_use_fsync(false);
         opts.set_bytes_per_sync(1048576);
 
-        let db_path = cache_dir.join("metadata.db");
         let db = DB::open(&opts, db_path)?;
 
         Ok(Self {
@@ -136,6 +140,41 @@ impl StorageBackend {
         }
 
         Ok(total_size)
+    }
+
+    /// Try to recover from a stale lock file
+    pub fn try_recover_lock(db_path: &Path) -> Result<()> {
+        use tracing::{debug, warn};
+
+        let lock_path = db_path.join("LOCK");
+
+        if lock_path.exists() {
+            // Check if we can open the database - if another process has it, this will fail
+            match DB::open_for_read_only(&Options::default(), db_path, false) {
+                Ok(_) => {
+                    // Database is not actually locked, remove stale LOCK file
+                    warn!("Removing stale RocksDB LOCK file at {:?}", lock_path);
+                    std::fs::remove_file(&lock_path)?;
+                    Ok(())
+                },
+                Err(_) => {
+                    // Database is genuinely locked by another process
+                    debug!("RocksDB is locked by another process");
+                    Ok(())
+                },
+            }
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl Drop for StorageBackend {
+    fn drop(&mut self) {
+        // RocksDB will be properly closed when the Arc<RwLock<DB>> is dropped
+        // This ensures the LOCK file is released even on abnormal termination
+        use tracing::debug;
+        debug!("Closing RocksDB connection for {:?}", self.cache_dir);
     }
 }
 

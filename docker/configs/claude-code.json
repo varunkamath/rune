@@ -12,6 +12,8 @@
         "${PWD}:/workspace:ro",
         "-v",
         "${HOME}/.rune:/data",
+        "-e",
+        "RUNE_WORKSPACE_ID=${PWD}",
         "rune-mcp:latest"
       ],
       "env": {}

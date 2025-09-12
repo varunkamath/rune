@@ -327,6 +327,37 @@ Update configuration at runtime:
 }
 ```
 
+## 🔒 Cache Isolation & Multi-Agent Support
+
+Rune now provides workspace-specific cache isolation to prevent data mixing when multiple agents work on different projects:
+
+### How It Works
+
+- Each workspace gets a unique cache directory based on its path hash
+- Separate RocksDB metadata, Tantivy indices, and Qdrant collections per project
+- Automatic cleanup of stale locks on startup
+- Graceful shutdown ensures proper resource cleanup
+
+### Docker Configuration
+
+When using Docker, each project's cache is isolated:
+
+```bash
+# Cache stored at ~/.rune/<workspace-hash>/
+docker run --rm -i \
+  -v "${PWD}:/workspace:ro" \
+  -v "${HOME}/.rune:/data" \
+  -e "RUNE_WORKSPACE_ID=${PWD}" \
+  rune-mcp:latest
+```
+
+### Benefits
+
+- **No data mixing**: Each project has isolated search indices
+- **Concurrent usage**: Multiple agents can work on different projects simultaneously
+- **Automatic recovery**: Stale locks are cleaned up automatically
+- **Clean separation**: Each workspace maintains its own metadata and vector collections
+
 ## 🐛 Troubleshooting
 
 ### Check Container Status
@@ -468,6 +499,8 @@ cargo bench
 | ----------------------- | -------------------------- | ------------------------------- |
 | `RUNE_WORKSPACE`        | Workspace root to index    | `/workspace`                    |
 | `RUNE_CACHE_DIR`        | Cache directory            | `/data/cache`                   |
+| `RUNE_SHARED_CACHE`     | Enable workspace isolation | `true` (Docker)                 |
+| `RUNE_WORKSPACE_ID`     | Workspace identifier       | Auto-generated from path        |
 | `RUNE_MAX_FILE_SIZE`    | Max file size in bytes     | `10485760` (10MB)               |
 | `RUNE_INDEXING_THREADS` | Number of indexing threads | CPU count                       |
 | `RUNE_ENABLE_SEMANTIC`  | Enable semantic search     | `true`                          |

@@ -157,6 +157,7 @@ ENV NODE_ENV=production \
     QDRANT__SERVICE__HOST=0.0.0.0 \
     RUNE_WORKSPACE=/workspace \
     RUNE_CACHE_DIR=/data/cache \
+    RUNE_SHARED_CACHE=true \
     QDRANT_STORAGE=/data/qdrant
 
 # Expose MCP port
