@@ -329,7 +329,8 @@ Update configuration at runtime:
 
 ## 🔒 Cache Isolation & Multi-Agent Support
 
-Rune now provides workspace-specific cache isolation to prevent data mixing when multiple agents work on different projects:
+Rune now provides workspace-specific cache isolation to prevent data mixing when
+multiple agents work on different projects:
 
 ### How It Works
 
@@ -354,9 +355,11 @@ docker run --rm -i \
 ### Benefits
 
 - **No data mixing**: Each project has isolated search indices
-- **Concurrent usage**: Multiple agents can work on different projects simultaneously
+- **Concurrent usage**: Multiple agents can work on different projects
+  simultaneously
 - **Automatic recovery**: Stale locks are cleaned up automatically
-- **Clean separation**: Each workspace maintains its own metadata and vector collections
+- **Clean separation**: Each workspace maintains its own metadata and vector
+  collections
 
 ## 🐛 Troubleshooting
 

@@ -37,6 +37,12 @@ impl LiteralSearcher {
     pub async fn search(&self, query: &SearchQuery) -> Result<Vec<SearchResult>> {
         debug!("Performing literal search for: {}", query.query);
 
+        // Log if multi-word query
+        let word_count = query.query.split_whitespace().count();
+        if word_count > 1 {
+            debug!("Multi-word query detected with {} words", word_count);
+        }
+
         // Build Tantivy query
         let query_parser = QueryParser::for_index(
             self.tantivy_indexer.get_searcher().index(),
@@ -84,6 +90,11 @@ impl LiteralSearcher {
             .search_documents(tantivy_query.as_ref(), fetch_limit)
             .await?;
 
+        debug!(
+            "Tantivy returned {} documents for literal search",
+            docs.len()
+        );
+
         // Convert to SearchResult with line numbers and context
         let mut results = Vec::new();
 
@@ -126,10 +137,21 @@ impl LiteralSearcher {
             results.extend(search_results);
         }
 
+        debug!("Literal search found {} total line matches", results.len());
+
         // Apply offset and limit to the final results
         let start = query.offset.min(results.len());
         let end = (start + query.limit).min(results.len());
-        Ok(results[start..end].to_vec())
+        let final_results = results[start..end].to_vec();
+
+        debug!(
+            "Returning {} results after applying offset {} and limit {}",
+            final_results.len(),
+            query.offset,
+            query.limit
+        );
+
+        Ok(final_results)
     }
 
     fn find_matches_in_content(
@@ -142,52 +164,25 @@ impl LiteralSearcher {
     ) -> Result<Vec<SearchResult>> {
         let mut results = Vec::new();
         let lines: Vec<&str> = content.lines().collect();
-        let search_term_lower = search_term.to_lowercase();
 
-        for (line_idx, line) in lines.iter().enumerate() {
-            let line_lower = line.to_lowercase();
+        // Split the search term into individual words for multi-term queries
+        let search_words: Vec<String> = search_term
+            .split_whitespace()
+            .map(|s| s.to_lowercase())
+            .collect();
 
-            // First, find exact matches
-            let mut start = 0;
-            while let Some(pos) = line_lower[start..].find(&search_term_lower) {
-                let column = start + pos;
+        // If it's a single word, use the original exact matching logic
+        if search_words.len() == 1 {
+            let search_term_lower = search_term.to_lowercase();
 
-                // Get context lines (3 before, 3 after)
-                let context_before: Vec<String> = lines
-                    .iter()
-                    .skip(line_idx.saturating_sub(3))
-                    .take(line_idx.min(3))
-                    .map(|s| s.to_string())
-                    .collect();
+            for (line_idx, line) in lines.iter().enumerate() {
+                let line_lower = line.to_lowercase();
 
-                let context_after: Vec<String> = lines
-                    .iter()
-                    .skip(line_idx + 1)
-                    .take(3)
-                    .map(|s| s.to_string())
-                    .collect();
+                // First, find exact matches
+                let mut start = 0;
+                while let Some(pos) = line_lower[start..].find(&search_term_lower) {
+                    let column = start + pos;
 
-                results.push(SearchResult {
-                    file_path: file_path.to_path_buf(),
-                    repository: repository.to_string(),
-                    line_number: line_idx + 1, // 1-indexed
-                    column,
-                    content: line.to_string(),
-                    context_before,
-                    context_after,
-                    score,
-                    match_type: MatchType::Exact,
-                });
-
-                start = column + search_term.len();
-            }
-
-            // If fuzzy matching is enabled and we haven't found exact matches on this line,
-            // look for fuzzy matches
-            if self.fuzzy_matcher.is_enabled() && !line_lower.contains(&search_term_lower) {
-                let fuzzy_matches = self.fuzzy_matcher.find_fuzzy_matches(search_term, line);
-
-                for fuzzy_match in fuzzy_matches {
                     // Get context lines (3 before, 3 after)
                     let context_before: Vec<String> = lines
                         .iter()
@@ -203,19 +198,108 @@ impl LiteralSearcher {
                         .map(|s| s.to_string())
                         .collect();
 
-                    // Adjust score based on fuzzy match similarity
-                    let fuzzy_score = score * fuzzy_match.similarity as f32;
+                    results.push(SearchResult {
+                        file_path: file_path.to_path_buf(),
+                        repository: repository.to_string(),
+                        line_number: line_idx + 1, // 1-indexed
+                        column,
+                        content: line.to_string(),
+                        context_before,
+                        context_after,
+                        score,
+                        match_type: MatchType::Exact,
+                    });
+
+                    start = column + search_term.len();
+                }
+
+                // If fuzzy matching is enabled and we haven't found exact matches on this line,
+                // look for fuzzy matches
+                if self.fuzzy_matcher.is_enabled() && !line_lower.contains(&search_term_lower) {
+                    let fuzzy_matches = self.fuzzy_matcher.find_fuzzy_matches(search_term, line);
+
+                    for fuzzy_match in fuzzy_matches {
+                        // Get context lines (3 before, 3 after)
+                        let context_before: Vec<String> = lines
+                            .iter()
+                            .skip(line_idx.saturating_sub(3))
+                            .take(line_idx.min(3))
+                            .map(|s| s.to_string())
+                            .collect();
+
+                        let context_after: Vec<String> = lines
+                            .iter()
+                            .skip(line_idx + 1)
+                            .take(3)
+                            .map(|s| s.to_string())
+                            .collect();
+
+                        // Adjust score based on fuzzy match similarity
+                        let fuzzy_score = score * fuzzy_match.similarity as f32;
+
+                        results.push(SearchResult {
+                            file_path: file_path.to_path_buf(),
+                            repository: repository.to_string(),
+                            line_number: line_idx + 1, // 1-indexed
+                            column: fuzzy_match.position,
+                            content: line.to_string(),
+                            context_before,
+                            context_after,
+                            score: fuzzy_score,
+                            match_type: MatchType::Fuzzy,
+                        });
+                    }
+                }
+            }
+        } else {
+            // Multi-word search: find lines containing ANY of the words
+            for (line_idx, line) in lines.iter().enumerate() {
+                let line_lower = line.to_lowercase();
+                let mut line_has_match = false;
+                let mut first_match_column = 0;
+                let mut match_count = 0;
+
+                // Check if this line contains any of the search words
+                for word in &search_words {
+                    if let Some(pos) = line_lower.find(word) {
+                        if !line_has_match {
+                            first_match_column = pos;
+                            line_has_match = true;
+                        }
+                        match_count += 1;
+                    }
+                }
+
+                // If this line contains at least one search word, add it to results
+                if line_has_match {
+                    // Get context lines (3 before, 3 after)
+                    let context_before: Vec<String> = lines
+                        .iter()
+                        .skip(line_idx.saturating_sub(3))
+                        .take(line_idx.min(3))
+                        .map(|s| s.to_string())
+                        .collect();
+
+                    let context_after: Vec<String> = lines
+                        .iter()
+                        .skip(line_idx + 1)
+                        .take(3)
+                        .map(|s| s.to_string())
+                        .collect();
+
+                    // Boost score based on how many terms matched
+                    let boosted_score = score * (1.0 + (match_count as f32 - 1.0) * 0.5);
 
                     results.push(SearchResult {
                         file_path: file_path.to_path_buf(),
                         repository: repository.to_string(),
                         line_number: line_idx + 1, // 1-indexed
-                        column: fuzzy_match.position,
+                        column: first_match_column,
                         content: line.to_string(),
                         context_before,
                         context_after,
-                        score: fuzzy_score,
-                        match_type: MatchType::Fuzzy,
+                        score: boosted_score,
+                        match_type: MatchType::Exact,
                     });
                 }
             }

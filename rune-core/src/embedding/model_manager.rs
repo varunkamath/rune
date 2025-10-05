@@ -126,7 +126,7 @@ impl ModelManager {
 
             if total_size > 0 {
                 let progress = (downloaded as f64 / total_size as f64) * 100.0;
-                if downloaded % (1024 * 1024) == 0 || downloaded == total_size {
+                if downloaded.is_multiple_of(1024 * 1024) || downloaded == total_size {
                     info!("Download progress: {:.1}%", progress);
                 }
             }

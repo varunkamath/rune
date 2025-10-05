@@ -64,7 +64,7 @@ indexmap = "2.11"
 
 # Testing
 mockall = "0.13"
-proptest = "1.7"
+proptest = "1.8"
 criterion = "0.7"
 
 [profile.release]

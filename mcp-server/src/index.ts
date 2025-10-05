@@ -15,6 +15,7 @@ import {
 
 import { z } from 'zod';
 import { RuneBridge, RuneBridgeInstance } from './bridge.js';
+import crypto from 'crypto';
 
 // Configuration schema
 const ConfigSchema = z.object({
@@ -532,7 +533,6 @@ Example Configurations:
 
   private getWorkspaceId(workspacePath: string): string {
     // Use crypto to create a short, unique hash of the workspace path
-    const crypto = require('crypto');
     const hash = crypto.createHash('sha256').update(workspacePath).digest('hex');
     // Use first 16 chars for reasonable uniqueness without being too long
     return hash.substring(0, 16);
