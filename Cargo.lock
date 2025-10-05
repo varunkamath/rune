@@ -2908,7 +2908,7 @@ dependencies = [
 
 [[package]]
 name = "rune-bridge"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "libc",
@@ -2925,7 +2925,7 @@ dependencies = [
 
 [[package]]
 name = "rune-core"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "async-trait",

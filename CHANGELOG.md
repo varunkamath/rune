@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.2.0](https://github.com/varunkamath/rune/compare/v1.1.0...v1.2.0) (2025-10-05)
+
+### ✨ Features
+
+* Add incremental hash checking, dead code allows ([7a5eb56](https://github.com/varunkamath/rune/commit/7a5eb56dd8e4bfd90485e68079849b48334e9dbf))
+* Multi-word search ([24f1d5e](https://github.com/varunkamath/rune/commit/24f1d5ed287259dc885f6e4ead3bc8302b486f8c))
+* Workspace dynamic caching ([4d09ecf](https://github.com/varunkamath/rune/commit/4d09ecf167a5c3b1fbb6d03520ee046ede9ca601))
+
+### 🐛 Bug Fixes
+
+* **ci:** Fix docker build process ([4fe2bb1](https://github.com/varunkamath/rune/commit/4fe2bb19de07f805a8b650d1735b1cfa3896305a))
+* Fix build errors, incremental autoindex ([c1dcfe3](https://github.com/varunkamath/rune/commit/c1dcfe381f132de5ee0ac192a1d705bacdcf8ef7))
+* Remove error-prone HTTP fallback ([8d4b217](https://github.com/varunkamath/rune/commit/8d4b2179ac44ba310c12840bdf3121b0f1946098))
+
+### 📚 Documentation
+
+* Clarify literal tool usage ([6ca51dc](https://github.com/varunkamath/rune/commit/6ca51dcc5af0667ec402f029f79f1e7caf633b4e))
+* Improve tool descriptions ([0bc4459](https://github.com/varunkamath/rune/commit/0bc4459155d43f796278c02e0aea9ac0a552e7f6))
+
 ## [1.1.0](https://github.com/varunkamath/rune/compare/v1.0.4...v1.1.0) (2025-09-10)
 
 ### ✨ Features
