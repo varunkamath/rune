@@ -139,19 +139,9 @@ impl LiteralSearcher {
 
         debug!("Literal search found {} total line matches", results.len());
 
-        // Apply offset and limit to the final results
-        let start = query.offset.min(results.len());
-        let end = (start + query.limit).min(results.len());
-        let final_results = results[start..end].to_vec();
-
-        debug!(
-            "Returning {} results after applying offset {} and limit {}",
-            final_results.len(),
-            query.offset,
-            query.limit
-        );
-
-        Ok(final_results)
+        // Note: Pagination is handled centrally in SearchEngine::search()
+        // Return all results without applying offset/limit here to avoid double pagination
+        Ok(results)
     }
 
     fn find_matches_in_content(

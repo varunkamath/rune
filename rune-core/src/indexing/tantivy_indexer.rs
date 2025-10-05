@@ -25,6 +25,9 @@ pub struct TantivyIndexer {
     symbols_field: Field,
     line_numbers_field: Field,
     repository_field: Field,
+
+    // Shared symbol extractor for all files
+    symbol_extractor: Arc<SymbolExtractor>,
 }
 
 impl TantivyIndexer {
@@ -72,6 +75,9 @@ impl TantivyIndexer {
             .reload_policy(ReloadPolicy::OnCommitWithDelay)
             .try_into()?;
 
+        // Create shared symbol extractor (reused for all files)
+        let symbol_extractor = Arc::new(SymbolExtractor::new());
+
         Ok(Self {
             _index: index,
             schema,
@@ -83,6 +89,7 @@ impl TantivyIndexer {
             symbols_field,
             line_numbers_field,
             repository_field,
+            symbol_extractor,
         })
     }
 
@@ -95,10 +102,10 @@ impl TantivyIndexer {
         // Detect language
         let language = LanguageDetector::detect(file_path, Some(content));
 
-        // Extract symbols if supported
+        // Extract symbols if supported (using shared extractor)
         let symbols = if language.supports_tree_sitter() {
-            let extractor = SymbolExtractor::new();
-            extractor.extract_symbols(file_path, content, language)?
+            self.symbol_extractor
+                .extract_symbols(file_path, content, language)?
         } else {
             Vec::new()
         };

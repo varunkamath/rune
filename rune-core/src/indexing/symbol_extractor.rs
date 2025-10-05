@@ -84,10 +84,19 @@ impl SymbolExtractor {
             return Ok(Vec::new());
         }
 
-        let mut parser = self.get_or_create_parser(language)?;
-        let tree = parser
-            .parse(content, None)
-            .ok_or_else(|| anyhow!("Failed to parse file"))?;
+        // Get or create parser for this language, then parse with exclusive access
+        self.ensure_parser_exists(language)?;
+
+        // Use DashMap's entry API to get exclusive mutable access to cached parser
+        let tree = {
+            let mut parser_ref = self
+                .parsers
+                .get_mut(&language)
+                .ok_or_else(|| anyhow!("Parser not found after creation"))?;
+            parser_ref
+                .parse(content, None)
+                .ok_or_else(|| anyhow!("Failed to parse file"))?
+        }; // parser_ref dropped here, releasing the lock
 
         let root = tree.root_node();
         let mut symbols = Vec::new();
@@ -110,25 +119,19 @@ impl SymbolExtractor {
         Ok(symbols)
     }
 
-    fn get_or_create_parser(&self, language: Language) -> Result<Parser> {
-        // Check if parser exists
+    fn ensure_parser_exists(&self, language: Language) -> Result<()> {
+        // Check if parser already exists in cache
         if self.parsers.contains_key(&language) {
-            let mut parser = Parser::new();
-            let ts_language = self.get_tree_sitter_language(language)?;
-            parser.set_language(&ts_language)?;
-            return Ok(parser);
+            return Ok(());
         }
 
+        // Create and cache a new parser for this language
         let mut parser = Parser::new();
         let ts_language = self.get_tree_sitter_language(language)?;
         parser.set_language(&ts_language)?;
+        self.parsers.insert(language, parser);
 
-        // Store a copy for future use
-        let mut parser_copy = Parser::new();
-        parser_copy.set_language(&ts_language)?;
-        self.parsers.insert(language, parser_copy);
-
-        Ok(parser)
+        Ok(())
     }
 
     fn get_tree_sitter_language(&self, language: Language) -> Result<TSLanguage> {

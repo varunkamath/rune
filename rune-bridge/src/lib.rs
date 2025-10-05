@@ -6,16 +6,19 @@ use rune_core::{
     Config, RuneEngine,
     search::{SearchMode, SearchQuery},
 };
+#[cfg(unix)]
 use std::os::unix::io::{AsRawFd, FromRawFd};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-// Helper to suppress stdout during Qdrant operations
+// Helper to suppress stdout during Qdrant operations (Unix only)
+#[cfg(unix)]
 struct StdoutSuppressor {
     saved_stdout: Option<std::fs::File>,
 }
 
+#[cfg(unix)]
 impl StdoutSuppressor {
     fn new() -> Self {
         unsafe {
@@ -39,6 +42,7 @@ impl StdoutSuppressor {
     }
 }
 
+#[cfg(unix)]
 impl Drop for StdoutSuppressor {
     fn drop(&mut self) {
         if let Some(saved) = self.saved_stdout.take() {
@@ -48,6 +52,22 @@ impl Drop for StdoutSuppressor {
             }
         }
     }
+}
+
+// Windows stub - no stdout suppression needed (Rust-side suppression still active)
+#[cfg(not(unix))]
+struct StdoutSuppressor;
+
+#[cfg(not(unix))]
+impl StdoutSuppressor {
+    fn new() -> Self {
+        StdoutSuppressor
+    }
+}
+
+#[cfg(not(unix))]
+impl Drop for StdoutSuppressor {
+    fn drop(&mut self) {}
 }
 
 #[napi]
@@ -150,12 +170,8 @@ impl RuneBridge {
             .await
             .map_err(|e| Error::from_reason(format!("Failed to start engine: {}", e)))?;
 
-        // Trigger initial indexing
-        engine
-            .indexer()
-            .reindex()
-            .await
-            .map_err(|e| Error::from_reason(format!("Failed to reindex: {}", e)))?;
+        // Note: engine.start() already performs initial indexing via index_workspaces()
+        // No need to call reindex() again here
 
         Ok(())
     }

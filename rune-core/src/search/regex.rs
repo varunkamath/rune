@@ -50,7 +50,8 @@ impl RegexSearcher {
         // Get file list from storage
         let files = self.storage.list_files().await?;
 
-        for file_path in files.iter().take(query.limit + query.offset) {
+        // Scan all files to find matches (pagination handled centrally in SearchEngine::search())
+        for file_path in files.iter() {
             // Apply repository filter if specified
             if let Some(repos) = &query.repositories {
                 let repo = file_path

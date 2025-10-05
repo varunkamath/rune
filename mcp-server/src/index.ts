@@ -590,20 +590,9 @@ Example Configurations:
   }
 }
 
-// Filter stdout to ensure only JSON-RPC messages are sent to the MCP client
-const originalStdoutWrite = process.stdout.write;
-process.stdout.write = function (
-  chunk: string | Uint8Array,
-  ...args: Parameters<typeof process.stdout.write> extends [unknown, ...infer R] ? R : never[]
-): boolean {
-  // Silently drop any non-JSON writes to keep the protocol clean
-  const str = chunk?.toString() ?? '';
-  if (str && !str.startsWith('{') && !str.startsWith('[')) {
-    // Non-JSON output is dropped to prevent protocol corruption
-    return true;
-  }
-  return originalStdoutWrite.call(process.stdout, chunk, ...args);
-} as typeof process.stdout.write;
+// Note: stdout filtering removed to avoid MCP protocol corruption from chunked writes.
+// Rust-side output suppression (NullSubscriber + StdoutSuppressor) handles noise prevention.
+// All logging goes to stderr as intended.
 
 // Main entry point
 const server = new RuneMcpServer();

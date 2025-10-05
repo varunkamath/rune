@@ -21,21 +21,21 @@ import { RuneBridge } from './dist/bridge.js';
 
 async function testSearch() {
     const bridge = new RuneBridge();
-    
+
     // Initialize
     const config = {
         workspaceRoots: ["/Users/varun/Projects/rune"],
         cacheDir: ".rune_cache_test",
         enableSemantic: true
     };
-    
+
     await bridge.initialize(JSON.stringify(config));
     await bridge.start();
-    
+
     // Wait for indexing
     console.log("Waiting for indexing...");
     await new Promise(resolve => setTimeout(resolve, 5000));
-    
+
     // Test multi-word search
     const query = {
         query: "ports grpc rest",
@@ -43,11 +43,11 @@ async function testSearch() {
         limit: 10,
         offset: 0
     };
-    
+
     console.log("\n=== Testing literal search for 'ports grpc rest' ===");
     const results = await bridge.search(JSON.stringify(query));
     const parsed = JSON.parse(results);
-    
+
     console.log(`Found ${parsed.results.length} results`);
     if (parsed.results.length > 0) {
         console.log("\nFirst few results:");
@@ -58,7 +58,7 @@ async function testSearch() {
             console.log(`   Score: ${r.score}`);
         });
     }
-    
+
     await bridge.stop();
 }
 

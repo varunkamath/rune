@@ -2,20 +2,20 @@
 services:
   api:
     ports:
-      - "8080:8080"  # REST API port
-      - "6334:6334"  # gRPC port for internal communication
+      - "8080:8080" # REST API port
+      - "6334:6334" # gRPC port for internal communication
     environment:
       - GRPC_PORT=6334
       - REST_PORT=8080
-      
+
   database:
     ports:
-      - "5432:5432"  # PostgreSQL port
-    
+      - "5432:5432" # PostgreSQL port
+
   cache:
     ports:
-      - "6379:6379"  # Redis port
-      
+      - "6379:6379" # Redis port
+
 # Notes:
 # - REST API runs on port 8080
 # - gRPC services use port 6334
