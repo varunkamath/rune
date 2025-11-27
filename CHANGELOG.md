@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.2.2](https://github.com/varunkamath/rune/compare/v1.2.1...v1.2.2) (2025-11-27)
+
+### 🐛 Bug Fixes
+
+* Migrate to oxlint ([28730f2](https://github.com/varunkamath/rune/commit/28730f2f9a75013bd7f1b15a2b1e93d9326c6528))
+
 ## [1.2.1](https://github.com/varunkamath/rune/compare/v1.2.0...v1.2.1) (2025-11-27)
 
 ### 🐛 Bug Fixes
