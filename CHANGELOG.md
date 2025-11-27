@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.2.1](https://github.com/varunkamath/rune/compare/v1.2.0...v1.2.1) (2025-11-27)
+
+### 🐛 Bug Fixes
+
+* Fix several bugs ([22f64e5](https://github.com/varunkamath/rune/commit/22f64e5de794a2fb9f9c7b71b2513ffdcf01a68e))
+* Update dependencies and fix failing tests ([a026e4f](https://github.com/varunkamath/rune/commit/a026e4f56d00ec626d381e5baa10179dd6497f57))
+
 ## [1.2.0](https://github.com/varunkamath/rune/compare/v1.1.0...v1.2.0) (2025-10-05)
 
 ### ✨ Features
