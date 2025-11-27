@@ -60,14 +60,13 @@ repos:
         exclude: ^(dist/|target/|.*\.node|pnpm-lock\.yaml|CHANGELOG\.md)$
         require_serial: true
 
-      - id: eslint
-        name: eslint
-        entry: pnpm exec eslint --fix
+      - id: oxlint
+        name: oxlint
+        entry: pnpm exec oxlint
         language: system
         types_or: [javascript, jsx, ts, tsx]
         exclude: ^(dist/|.*\.node)$
         files: ^mcp-server/
-        require_serial: true
 
       - id: typescript
         name: typescript
