@@ -2,23 +2,17 @@ use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
 /// Quantization mode for vector storage
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum QuantizationMode {
     /// No quantization - full float32 precision (384 dims * 4 bytes = 1536 bytes per vector)
     None,
     /// Scalar quantization to int8 (384 dims * 1 byte = 384 bytes per vector, 75% reduction)
+    #[default]
     Scalar,
     /// Binary quantization to 1-bit (384 dims / 8 = 48 bytes per vector, 97% reduction)
     Binary,
     /// Asymmetric: Binary storage + Scalar queries (best accuracy with low memory)
     Asymmetric,
-}
-
-impl Default for QuantizationMode {
-    fn default() -> Self {
-        // Default to scalar for good balance of accuracy and memory
-        Self::Scalar
-    }
 }
 
 impl QuantizationMode {

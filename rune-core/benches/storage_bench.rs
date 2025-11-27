@@ -101,8 +101,10 @@ fn benchmark_storage_read(c: &mut Criterion) {
 
     // Benchmark random reads
     group.bench_function("random", |b| {
+        use rand::Rng;
+        let mut rng = rand::rng();
         b.iter(|| {
-            let idx = rand::random::<usize>() % 100;
+            let idx = rng.random_range(0..100);
             let path = PathBuf::from(format!("test_file_{}.rs", idx));
             let result = rt.block_on(storage.get_file_metadata(&path));
             let _ = black_box(result);

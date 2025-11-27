@@ -65,7 +65,7 @@ ignore = "0.4"                                 # gitignore-aware file traversal
 blake3 = "1.8"                                 # fast hashing
 uuid = { version = "1.18", features = ["v4"] } # UUID generation
 lru = "0.16"
-bytes = "1.10"
+bytes = "1.11"
 futures = "0.3"
 crossbeam-channel = "0.5"
 num_cpus = "1.17"
@@ -75,7 +75,7 @@ strsim = "0.11"                                # Fuzzy string matching with Leve
 reqwest = { version = "0.12", features = ["json", "stream"] }
 
 # Vector database
-qdrant-client = { version = "1.15", optional = true }
+qdrant-client = { version = "1.16", optional = true }
 
 # Embedding support
 ort = { version = "2.0.0-rc.10", default-features = false, features = [
@@ -95,7 +95,7 @@ proptest = { workspace = true }
 criterion = { workspace = true }
 tempfile = "3.23"
 pretty_assertions = "1.4"
-rand = "0.8"
+rand = "0.9"
 
 [features]
 default = ["semantic"]
