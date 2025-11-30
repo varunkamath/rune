@@ -452,7 +452,7 @@ async fn test_semantic_search_without_qdrant() {
 }
 
 #[tokio::test]
-async fn test_hybrid_search_mode() {
+async fn test_semantic_search_basic() {
     // Skip test if Qdrant is not available
     if !is_qdrant_available().await {
         eprintln!("Skipping test: Qdrant is not running on localhost:6333");
@@ -491,28 +491,21 @@ async fn test_hybrid_search_mode() {
     // Wait for indexing
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
-    // Test hybrid search (combines literal and semantic)
-    let hybrid_query = rune_core::search::SearchQuery {
-        query: "HashMap".to_string(), // Literal match in cache.rs
-        mode: rune_core::search::SearchMode::Hybrid,
+    // Test semantic search
+    let semantic_query = rune_core::search::SearchQuery {
+        query: "caching with hash maps".to_string(),
+        mode: rune_core::search::SearchMode::Semantic,
         repositories: None,
         file_patterns: None,
         limit: 10,
         offset: 0,
     };
 
-    let hybrid_results = engine.search().search(hybrid_query).await.unwrap();
+    let semantic_results = engine.search().search(semantic_query).await.unwrap();
     assert!(
-        hybrid_results.total_matches > 0,
-        "Hybrid search should find results"
+        semantic_results.total_matches > 0,
+        "Semantic search should find results"
     );
-
-    // Should find both literal matches and semantically similar code
-    let has_literal_match = hybrid_results
-        .results
-        .iter()
-        .any(|r| r.content.contains("HashMap"));
-    assert!(has_literal_match, "Should find literal HashMap matches");
 
     // Clean up
     unsafe {

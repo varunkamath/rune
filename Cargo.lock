@@ -2852,7 +2852,6 @@ dependencies = [
  "serde",
  "serde_json",
  "streaming-iterator",
- "strsim",
  "tantivy",
  "tempfile",
  "thiserror 2.0.17",

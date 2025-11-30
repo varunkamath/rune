@@ -202,17 +202,9 @@ impl RuneBridge {
             .map_err(|e| Error::from_reason(format!("Invalid query: {}", e)))?;
 
         let mode = match query.mode.to_lowercase().as_str() {
-            "literal" => SearchMode::Literal,
-            "regex" => SearchMode::Regex,
             "symbol" => SearchMode::Symbol,
             "semantic" => SearchMode::Semantic,
-            "hybrid" => SearchMode::Hybrid,
-            _ => {
-                return Err(Error::from_reason(format!(
-                    "Invalid search mode: {}",
-                    query.mode
-                )));
-            },
+            _ => SearchMode::Semantic, // Default to semantic for any other mode
         };
 
         let rust_query = SearchQuery {

@@ -33,7 +33,6 @@ const ConfigSchema = z.object({
 // Search query schema
 const SearchQuerySchema = z.object({
   query: z.string(),
-  mode: z.enum(['literal', 'regex', 'symbol', 'semantic', 'hybrid']).default('hybrid'),
   repositories: z.array(z.string()).optional(),
   filePatterns: z.array(z.string()).optional(),
   limit: z.number().default(50),
@@ -79,63 +78,30 @@ class RuneMcpServer {
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: [
         {
-          name: 'search',
-          description: `Advanced multi-modal code search engine for finding code patterns, implementations, and concepts across your entire codebase.
+          name: 'search_symbols',
+          description: `Search for code symbols (functions, classes, methods, structs, interfaces, etc.) using AST-aware parsing.
 
-This tool provides high-performance search capabilities that go beyond simple text matching, offering intelligent code understanding through multiple search modes.
+Use this tool to find symbol definitions and declarations across your codebase. It understands code structure, not just text.
 
-When to use this tool:
-- Finding function/class/variable definitions and usages
-- Locating specific code patterns or implementations
-- Discovering similar code semantically (even with different syntax)
-- Searching for security vulnerabilities or code smells
-- Understanding code relationships and dependencies
-- Finding examples of how APIs or libraries are used
-- Tracking down bugs by searching for error patterns
-- Refactoring by finding all instances of a pattern
-
-Search Modes Explained:
-- literal: Searches for documents containing ALL query terms (not as exact phrase). Best for single terms or function names. Avoid multiple unrelated terms.
-- regex: Pattern matching with full regex support for complex searches
-- symbol: AST-based search for language constructs (functions, classes, variables)
-- semantic: AI-powered search understanding code meaning, not just text
-- hybrid: Combines all modes using Reciprocal Rank Fusion for best results (RECOMMENDED)
-
-Key Features:
-- Typo tolerance: Automatically finds similar terms using Levenshtein distance
-- Context awareness: Returns surrounding code for better understanding
-- Language agnostic: Works with 100+ programming languages
-- Lightning fast: Optimized with Tantivy (Rust-based Lucene) and caching
-- Incremental indexing: Only re-indexes changed files
-
-Best Practices:
-1. Start with hybrid mode for most searches (default)
-2. Use semantic mode for concept searches (e.g., "authentication logic")
-3. Use symbol mode for finding definitions (e.g., "class UserAuth")
-4. Use regex for complex patterns (e.g., "TODO.*security")
-5. Apply file filters to narrow scope (e.g., filePatterns: ["*.rs", "*.go"])
+When to use:
+- Finding function/method definitions by name
+- Locating class, struct, or interface declarations
+- Finding where a symbol is defined (not just referenced)
+- Searching for specific code constructs
 
 Examples:
-- Find authentication code: query="authentication", mode="semantic"
-- Find TODO comments: query="TODO|FIXME", mode="regex"
-- Find React hooks: query="use[A-Z]\\w+", mode="regex", filePatterns=["*.tsx", "*.jsx"]
-- Find database connections: query="database connection pooling", mode="hybrid"
-- Find similar implementations: query="quicksort algorithm", mode="semantic"
-- Find specific function: query="getUserById", mode="literal" (single term works best)
-- AVOID: query="mountPath /opt/kafka /data", mode="literal" (multiple unrelated terms rarely match)`,
+- Find a function: query="getUserById"
+- Find a class: query="AuthenticationService"
+- Find a struct: query="Config"
+- Find React components: query="Button", filePatterns=["*.tsx"]
+
+Note: For text search or pattern matching, use terminal tools like ripgrep (rg) instead.`,
           inputSchema: {
             type: 'object',
             properties: {
               query: {
                 type: 'string',
-                description:
-                  'Search query. For literal mode: use single terms or exact phrases, not multiple unrelated terms',
-              },
-              mode: {
-                type: 'string',
-                enum: ['literal', 'regex', 'symbol', 'semantic', 'hybrid'],
-                description: 'Search mode',
-                default: 'hybrid',
+                description: 'Symbol name to search for',
               },
               repositories: {
                 type: 'array',
@@ -145,7 +111,57 @@ Examples:
               filePatterns: {
                 type: 'array',
                 items: { type: 'string' },
-                description: 'Filter by file patterns',
+                description: 'Filter by file patterns (e.g., ["*.rs", "*.ts"])',
+              },
+              limit: {
+                type: 'number',
+                description: 'Maximum number of results',
+                default: 50,
+              },
+              offset: {
+                type: 'number',
+                description: 'Offset for pagination',
+                default: 0,
+              },
+            },
+            required: ['query'],
+          },
+        },
+        {
+          name: 'search_semantic',
+          description: `AI-powered semantic search that finds code by meaning, not just text.
+
+Use natural language queries to find code that matches your intent, even if it uses different terminology or syntax.
+
+When to use:
+- Finding code that implements a concept (e.g., "authentication logic")
+- Discovering similar implementations across the codebase
+- Searching when you don't know exact names or syntax
+- Finding code related to a feature or functionality
+
+Examples:
+- Find auth code: query="user authentication and login handling"
+- Find error handling: query="retry logic with exponential backoff"
+- Find data validation: query="input sanitization and validation"
+- Find caching: query="memoization and caching strategies"
+
+Note: Requires Qdrant vector database running. For exact text matches, use terminal tools like ripgrep (rg) instead.`,
+          inputSchema: {
+            type: 'object',
+            properties: {
+              query: {
+                type: 'string',
+                description: 'Natural language description of what you are looking for',
+              },
+              repositories: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Filter by repositories',
+              },
+              filePatterns: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Filter by file patterns (e.g., ["*.py", "*.js"])',
               },
               limit: {
                 type: 'number',
@@ -336,13 +352,33 @@ Example Configurations:
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
         switch (request.params.name) {
-          case 'search': {
+          case 'search_symbols': {
             const args = SearchQuerySchema.parse(request.params.arguments);
             await this.ensureInitialized();
 
             const searchQuery = {
               query: args.query,
-              mode: args.mode,
+              mode: 'symbol',
+              repositories: args.repositories?.length ? args.repositories : undefined,
+              file_patterns: args.filePatterns?.length ? args.filePatterns : undefined,
+              limit: args.limit || 50,
+              offset: args.offset || 0,
+            };
+
+            const results = await this.bridge.search(JSON.stringify(searchQuery));
+
+            return {
+              content: [{ type: 'text', text: results }],
+            };
+          }
+
+          case 'search_semantic': {
+            const args = SearchQuerySchema.parse(request.params.arguments);
+            await this.ensureInitialized();
+
+            const searchQuery = {
+              query: args.query,
+              mode: 'semantic',
               repositories: args.repositories?.length ? args.repositories : undefined,
               file_patterns: args.filePatterns?.length ? args.filePatterns : undefined,
               limit: args.limit || 50,

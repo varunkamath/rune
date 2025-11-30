@@ -62,7 +62,6 @@ blake3 = "1.8"                                 # fast hashing
 uuid = { version = "1.18", features = ["v4"] } # UUID generation
 futures = "0.3"
 num_cpus = "1.17"
-strsim = "0.11"                                # Fuzzy string matching with Levenshtein distance
 
 # HTTP client for model downloads
 reqwest = { version = "0.12", features = ["json", "stream"] }
@@ -103,9 +102,6 @@ harness = false
 name = "search_bench"
 harness = false
 
-[[bench]]
-name = "hybrid_bench"
-harness = false
 
 [[bench]]
 name = "embedding_bench"

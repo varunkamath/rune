@@ -37,17 +37,17 @@ async fn main() -> anyhow::Result<()> {
     let stats = engine.stats().await?;
     println!("Stats: {:?}", stats);
 
-    // Test literal search
+    // Test symbol search
     let query = SearchQuery {
-        query: "def".to_string(),
-        mode: SearchMode::Literal,
+        query: "main".to_string(),
+        mode: SearchMode::Symbol,
         repositories: None,
         file_patterns: None,
         limit: 10,
         offset: 0,
     };
 
-    println!("Searching for 'def' with literal mode...");
+    println!("Searching for 'main' with symbol mode...");
     let results = engine.search().search(query).await?;
 
     println!("Found {} results", results.results.len());

@@ -332,7 +332,7 @@ mod tests {
     async fn test_cache_key_generation() {
         let query1 = SearchQuery {
             query: "test query".to_string(),
-            mode: SearchMode::Literal,
+            mode: SearchMode::Symbol,
             limit: 10,
             offset: 0,
             ..Default::default()
@@ -340,7 +340,7 @@ mod tests {
 
         let query2 = SearchQuery {
             query: "test query".to_string(),
-            mode: SearchMode::Literal,
+            mode: SearchMode::Symbol,
             limit: 10,
             offset: 0,
             ..Default::default()
@@ -348,7 +348,7 @@ mod tests {
 
         let query3 = SearchQuery {
             query: "different query".to_string(),
-            mode: SearchMode::Literal,
+            mode: SearchMode::Symbol,
             limit: 10,
             offset: 0,
             ..Default::default()
@@ -373,7 +373,7 @@ mod tests {
 
         let query = SearchQuery {
             query: "test".to_string(),
-            mode: SearchMode::Literal,
+            mode: SearchMode::Symbol,
             ..Default::default()
         };
 
@@ -403,7 +403,7 @@ mod tests {
 
         let query = SearchQuery {
             query: "test".to_string(),
-            mode: SearchMode::Literal,
+            mode: SearchMode::Symbol,
             ..Default::default()
         };
 

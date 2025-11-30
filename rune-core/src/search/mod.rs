@@ -1,7 +1,3 @@
-pub mod fuzzy_match;
-pub mod hybrid;
-pub mod literal;
-pub mod regex;
 pub mod semantic;
 pub mod symbol;
 
@@ -20,11 +16,8 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SearchMode {
-    Literal,
-    Regex,
     Symbol,
     Semantic,
-    Hybrid,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,7 +34,7 @@ impl Default for SearchQuery {
     fn default() -> Self {
         Self {
             query: String::new(),
-            mode: SearchMode::Hybrid,
+            mode: SearchMode::Semantic,
             repositories: None,
             file_patterns: None,
             limit: 50,
@@ -65,8 +58,6 @@ pub struct SearchResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum MatchType {
-    Exact,
-    Fuzzy,
     Semantic,
     Symbol,
 }
@@ -83,15 +74,12 @@ pub struct SearchResponse {
 }
 
 pub struct SearchEngine {
-    _config: Arc<Config>,                  // Kept for sub-searcher initialization
-    _storage: StorageBackend,              // Kept for sub-searcher initialization
-    _tantivy_indexer: Arc<TantivyIndexer>, // Kept for sub-searcher initialization
-    literal_searcher: literal::LiteralSearcher,
-    regex_searcher: regex::RegexSearcher,
+    _config: Arc<Config>,
+    _storage: StorageBackend,
+    _tantivy_indexer: Arc<TantivyIndexer>,
     symbol_searcher: symbol::SymbolSearcher,
     #[cfg(feature = "semantic")]
     semantic_searcher: semantic::SemanticSearcher,
-    hybrid_searcher: hybrid::HybridSearcher,
     cache: Arc<MultiTierCache>,
 }
 
@@ -101,12 +89,6 @@ impl SearchEngine {
         let index_path = config.cache_dir.join("tantivy_index");
         let tantivy_indexer = Arc::new(TantivyIndexer::new_read_only(&index_path).await?);
 
-        let literal_searcher =
-            literal::LiteralSearcher::new(config.clone(), storage.clone(), tantivy_indexer.clone())
-                .await?;
-        let regex_searcher =
-            regex::RegexSearcher::new(config.clone(), storage.clone(), tantivy_indexer.clone())
-                .await?;
         let symbol_searcher =
             symbol::SymbolSearcher::new(config.clone(), storage.clone(), tantivy_indexer.clone())
                 .await?;
@@ -114,13 +96,6 @@ impl SearchEngine {
         #[cfg(feature = "semantic")]
         let semantic_searcher =
             semantic::SemanticSearcher::new(config.clone(), storage.clone()).await?;
-
-        let hybrid_searcher = hybrid::HybridSearcher::new(
-            literal_searcher.clone(),
-            symbol_searcher.clone(),
-            #[cfg(feature = "semantic")]
-            semantic_searcher.clone(),
-        );
 
         // Initialize cache with default config
         let cache_config = CacheConfig::default();
@@ -133,12 +108,9 @@ impl SearchEngine {
             _config: config,
             _storage: storage,
             _tantivy_indexer: tantivy_indexer,
-            literal_searcher,
-            regex_searcher,
             symbol_searcher,
             #[cfg(feature = "semantic")]
             semantic_searcher,
-            hybrid_searcher,
             cache,
         })
     }
@@ -155,17 +127,14 @@ impl SearchEngine {
 
         // Cache miss - perform actual search
         let results = match query.mode {
-            SearchMode::Literal => self.literal_searcher.search(&query).await?,
-            SearchMode::Regex => self.regex_searcher.search(&query).await?,
             SearchMode::Symbol => self.symbol_searcher.search(&query).await?,
             #[cfg(feature = "semantic")]
             SearchMode::Semantic => self.semantic_searcher.search(&query).await?,
             #[cfg(not(feature = "semantic"))]
             SearchMode::Semantic => {
-                tracing::warn!("Semantic search requested but embeddings feature is disabled");
+                tracing::warn!("Semantic search requested but semantic feature is disabled");
                 vec![]
             },
-            SearchMode::Hybrid => self.hybrid_searcher.search(&query).await?,
         };
 
         let total_matches = results.len();
@@ -208,130 +177,6 @@ mod tests {
     use crate::indexing::Indexer;
     use std::fs;
     use tempfile::tempdir;
-
-    #[tokio::test]
-    async fn test_literal_search() {
-        let temp_dir = tempdir().unwrap();
-        let workspace = temp_dir.path().join("workspace");
-        fs::create_dir(&workspace).unwrap();
-
-        // Create test files
-        fs::write(
-            workspace.join("test.rs"),
-            r#"
-fn main() {
-    println!("Hello, world!");
-}
-
-fn calculate_sum(a: i32, b: i32) -> i32 {
-    a + b
-}
-            "#,
-        )
-        .unwrap();
-
-        fs::write(
-            workspace.join("test.py"),
-            r#"
-def main():
-    print("Hello, world!")
-
-def calculate_sum(a, b):
-    return a + b
-            "#,
-        )
-        .unwrap();
-
-        let config = Arc::new(Config {
-            workspace_roots: vec![workspace],
-            cache_dir: temp_dir.path().join("cache"),
-            ..Default::default()
-        });
-
-        let storage = StorageBackend::new(&config.cache_dir).await.unwrap();
-
-        // Index files first
-        {
-            let indexer = Indexer::new(config.clone(), storage.clone()).await.unwrap();
-            // Index the workspace
-            indexer.index_workspaces().await.unwrap();
-            // Indexer is dropped here, releasing the writer lock
-        }
-
-        // Create search engine after indexer is dropped
-        let search_engine = SearchEngine::new(config, storage).await.unwrap();
-
-        // Test literal search
-        let query = SearchQuery {
-            query: "calculate_sum".to_string(),
-            mode: SearchMode::Literal,
-            limit: 10,
-            ..Default::default()
-        };
-
-        let response = search_engine.search(query).await.unwrap();
-        assert_eq!(response.total_matches, 2);
-        assert!(
-            response
-                .results
-                .iter()
-                .any(|r| r.file_path.ends_with("test.rs"))
-        );
-        assert!(
-            response
-                .results
-                .iter()
-                .any(|r| r.file_path.ends_with("test.py"))
-        );
-    }
-
-    #[tokio::test]
-    async fn test_regex_search() {
-        let temp_dir = tempdir().unwrap();
-        let workspace = temp_dir.path().join("workspace");
-        fs::create_dir(&workspace).unwrap();
-
-        // Create test file
-        fs::write(
-            workspace.join("test.rs"),
-            r#"
-fn process_data() {
-    let data1 = vec![1, 2, 3];
-    let data2 = vec![4, 5, 6];
-    let data3 = vec![7, 8, 9];
-}
-            "#,
-        )
-        .unwrap();
-
-        let config = Arc::new(Config {
-            workspace_roots: vec![workspace],
-            cache_dir: temp_dir.path().join("cache"),
-            ..Default::default()
-        });
-
-        let storage = StorageBackend::new(&config.cache_dir).await.unwrap();
-
-        // Index files first
-        {
-            let indexer = Indexer::new(config.clone(), storage.clone()).await.unwrap();
-            indexer.index_workspaces().await.unwrap();
-            // Indexer is dropped here, releasing the writer lock
-        }
-
-        let search_engine = SearchEngine::new(config, storage).await.unwrap();
-
-        // Test regex search
-        let query = SearchQuery {
-            query: r"data\d+".to_string(),
-            mode: SearchMode::Regex,
-            limit: 10,
-            ..Default::default()
-        };
-
-        let response = search_engine.search(query).await.unwrap();
-        assert_eq!(response.total_matches, 3); // Should match data1, data2, data3
-    }
 
     #[tokio::test]
     async fn test_symbol_search() {
@@ -394,68 +239,6 @@ fn helper_function() {}
     }
 
     #[tokio::test]
-    async fn test_hybrid_search() {
-        let temp_dir = tempdir().unwrap();
-        let workspace = temp_dir.path().join("workspace");
-        fs::create_dir(&workspace).unwrap();
-
-        // Create test files with overlapping content
-        fs::write(
-            workspace.join("main.rs"),
-            r#"
-fn process_data() {
-    println!("Processing data");
-}
-
-fn main() {
-    process_data();
-}
-            "#,
-        )
-        .unwrap();
-
-        fs::write(
-            workspace.join("lib.rs"),
-            r#"
-pub fn process_data() -> Vec<i32> {
-    vec![1, 2, 3]
-}
-            "#,
-        )
-        .unwrap();
-
-        let config = Arc::new(Config {
-            workspace_roots: vec![workspace],
-            cache_dir: temp_dir.path().join("cache"),
-            ..Default::default()
-        });
-
-        let storage = StorageBackend::new(&config.cache_dir).await.unwrap();
-
-        // Index files first
-        {
-            let indexer = Indexer::new(config.clone(), storage.clone()).await.unwrap();
-            indexer.index_workspaces().await.unwrap();
-            // Indexer is dropped here, releasing the writer lock
-        }
-
-        let search_engine = SearchEngine::new(config, storage).await.unwrap();
-
-        // Test hybrid search
-        let query = SearchQuery {
-            query: "process_data".to_string(),
-            mode: SearchMode::Hybrid,
-            limit: 10,
-            ..Default::default()
-        };
-
-        let response = search_engine.search(query).await.unwrap();
-        assert!(response.total_matches > 0);
-        // Results should be ranked by RRF score
-        assert!(response.results[0].score > 0.0);
-    }
-
-    #[tokio::test]
     async fn test_search_with_filters() {
         let temp_dir = tempdir().unwrap();
         let workspace = temp_dir.path().join("workspace");
@@ -483,17 +266,23 @@ pub fn process_data() -> Vec<i32> {
 
         let search_engine = SearchEngine::new(config, storage).await.unwrap();
 
-        // Test search with file pattern filter
+        // Test search with file pattern filter using symbol mode
         let query = SearchQuery {
             query: "main".to_string(),
-            mode: SearchMode::Literal,
+            mode: SearchMode::Symbol,
             file_patterns: Some(vec!["*.rs".to_string()]),
             limit: 10,
             ..Default::default()
         };
 
         let response = search_engine.search(query).await.unwrap();
-        assert_eq!(response.total_matches, 1);
-        assert!(response.results[0].file_path.ends_with("main.rs"));
+        // Symbol search looks for definitions, so we expect to find the main function
+        assert!(response.total_matches >= 1);
+        assert!(
+            response
+                .results
+                .iter()
+                .all(|r| r.file_path.extension().is_some_and(|e| e == "rs"))
+        );
     }
 }

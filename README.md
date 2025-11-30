@@ -7,20 +7,24 @@ accessible through the MCP protocol.
 
 ## Overview
 
-Rune indexes codebases and exposes search functionality through four MCP tools:
+Rune indexes codebases and exposes search functionality through MCP tools:
 
-- **search**: Multi-modal code search with five modes (literal, regex, symbol,
-  semantic, hybrid)
+- **search_symbols**: AST-based search for code symbols (functions, classes,
+  methods, etc.)
+- **search_semantic**: AI-powered semantic search using embeddings
 - **index_status**: Query indexing statistics and engine state
 - **reindex**: Trigger manual re-indexing of repositories
 - **configure**: Adjust engine settings at runtime
+
+Note: For text search and regex patterns, use terminal tools like `ripgrep` (rg)
+which agents can access directly.
 
 The server is built with a Rust core for search operations, connected to a
 TypeScript MCP interface via NAPI-RS bindings.
 
 ## Architecture
 
-```
+```text
 AI Agent (Claude, Copilot, etc.)
     |
     | MCP Protocol (JSON-RPC 2.0 over stdio)
@@ -171,32 +175,34 @@ Add to `.cursor/mcp.json`:
 
 ## Search Modes
 
-### Literal
+### Symbol (search_symbols)
 
-Full-text search using Tantivy. Searches for documents containing all query
-terms. Includes fuzzy matching fallback for typo tolerance (Levenshtein
-distance).
+AST-based search targeting language constructs. Uses tree-sitter to parse code
+and extract functions, classes, structs, enums, traits, methods, and other
+definitions. Best for finding where symbols are defined.
 
-### Regex
-
-Pattern matching with compiled regex caching. Scans indexed files for matches.
-
-### Symbol
-
-AST-based search targeting language constructs. Extracts and searches functions,
-classes, structs, enums, traits, and other definitions.
-
-### Semantic
+### Semantic (search_semantic)
 
 Vector similarity search using embeddings. Queries are embedded with
 all-MiniLM-L6-v2 (384 dimensions) and matched against code chunks stored in
-Qdrant.
+Qdrant. Use natural language queries to find code by meaning, not just text.
 
-### Hybrid
+### Text Search Alternative
 
-Combines literal, symbol, and semantic search results using Reciprocal Rank
-Fusion (RRF). Deduplicates by file path and line number, then ranks by combined
-score.
+For literal text search or regex patterns, use terminal tools directly:
+
+```bash
+# Find exact text
+rg "handleRequest" --type ts
+
+# Pattern matching
+rg "TODO.*security" --type rust
+
+# Find function calls
+rg "getUserById\(" --type js
+```
+
+Agents can execute these commands through their bash/terminal tools.
 
 ## Supported Languages
 
@@ -224,20 +230,21 @@ Additional languages are detected by file extension but indexed as plain text.
 
 ### Environment Variables
 
-| Variable                      | Default                                         | Description                                         |
-| ----------------------------- | ----------------------------------------------- | --------------------------------------------------- |
-| `RUNE_WORKSPACE`              | Current directory                               | Root directory to index                             |
-| `RUNE_CACHE_DIR`              | `.rune_cache`                                   | Directory for indices and metadata                  |
-| `RUNE_MAX_FILE_SIZE`          | `10485760`                                      | Maximum file size in bytes (10MB)                   |
-| `RUNE_INDEXING_THREADS`       | `4`                                             | Parallel indexing threads                           |
-| `RUNE_ENABLE_SEMANTIC`        | `true`                                          | Enable semantic search                              |
-| `RUNE_LANGUAGES`              | `rust,javascript,typescript,python,go,java,cpp` | Languages to index                                  |
-| `RUNE_FILE_WATCH_DEBOUNCE_MS` | `500`                                           | File watcher debounce delay                         |
-| `RUNE_FUZZY_ENABLED`          | `true`                                          | Enable fuzzy matching                               |
-| `RUNE_FUZZY_THRESHOLD`        | `0.75`                                          | Minimum similarity for fuzzy matches                |
-| `RUNE_FUZZY_MAX_DISTANCE`     | `2`                                             | Maximum Levenshtein distance                        |
-| `RUNE_QUANTIZATION_MODE`      | `scalar`                                        | Vector quantization (none/scalar/binary/asymmetric) |
-| `QDRANT_URL`                  | `http://localhost:6334`                         | Qdrant gRPC endpoint                                |
+| Variable                      | Default                 | Description                        |
+| ----------------------------- | ----------------------- | ---------------------------------- |
+| `RUNE_WORKSPACE`              | Current directory       | Root directory to index            |
+| `RUNE_CACHE_DIR`              | `.rune_cache`           | Directory for indices and metadata |
+| `RUNE_MAX_FILE_SIZE`          | `10485760`              | Max file size in bytes (10MB)      |
+| `RUNE_INDEXING_THREADS`       | `4`                     | Parallel indexing threads          |
+| `RUNE_ENABLE_SEMANTIC`        | `true`                  | Enable semantic search             |
+| `RUNE_LANGUAGES`              | (see below)             | Languages to index                 |
+| `RUNE_FILE_WATCH_DEBOUNCE_MS` | `500`                   | File watcher debounce (ms)         |
+| `RUNE_QUANTIZATION_MODE`      | `scalar`                | Vector quantization mode           |
+| `QDRANT_URL`                  | `http://localhost:6334` | Qdrant gRPC endpoint               |
+
+Default languages: `rust,javascript,typescript,python,go,java,cpp`
+
+Quantization options: `none`, `scalar`, `binary`, `asymmetric`
 
 ### Quantization Modes
 
@@ -267,18 +274,34 @@ path.
 
 ## MCP Tools
 
-### search
+### search_symbols
+
+Find code symbol definitions:
 
 ```json
 {
-  "tool": "search",
+  "tool": "search_symbols",
   "arguments": {
     "query": "handleRequest",
-    "mode": "hybrid",
     "limit": 50,
     "offset": 0,
-    "filePatterns": ["*.ts"],
-    "repositories": ["repo1"]
+    "filePatterns": ["*.ts"]
+  }
+}
+```
+
+### search_semantic
+
+Find code by meaning using natural language:
+
+```json
+{
+  "tool": "search_semantic",
+  "arguments": {
+    "query": "authentication and login handling",
+    "limit": 50,
+    "offset": 0,
+    "filePatterns": ["*.py", "*.ts"]
   }
 }
 ```
