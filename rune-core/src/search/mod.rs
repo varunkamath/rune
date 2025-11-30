@@ -1,7 +1,6 @@
 pub mod fuzzy_match;
 pub mod hybrid;
 pub mod literal;
-pub mod query_parser;
 pub mod regex;
 pub mod semantic;
 pub mod symbol;
@@ -192,15 +191,6 @@ impl SearchEngine {
         Ok(response)
     }
 
-    pub async fn reindex(&self) -> Result<()> {
-        // Clear cache when reindexing as results may change
-        self.cache.clear().await;
-        tracing::info!("Cleared search cache for reindexing");
-
-        // Trigger reindexing
-        Ok(())
-    }
-
     /// Get cache metrics for monitoring
     pub fn cache_metrics(&self) -> Arc<crate::cache::CacheMetrics> {
         self.cache.metrics()
@@ -209,11 +199,6 @@ impl SearchEngine {
     /// Clear the search cache
     pub async fn clear_cache(&self) {
         self.cache.clear().await;
-    }
-
-    /// Invalidate cache entries matching a pattern
-    pub async fn invalidate_cache_pattern(&self, pattern: &str) {
-        self.cache.invalidate_pattern(pattern).await;
     }
 }
 

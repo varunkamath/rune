@@ -13,7 +13,6 @@ export interface RuneBridgeInstance {
   search(queryJson: string): Promise<string>;
   getStats(): Promise<string>;
   reindex(): Promise<void>;
-  echo(message: string): Promise<string>;
 }
 
 export interface RuneBridgeConstructor {
@@ -104,10 +103,6 @@ const createMockBridge = (): RuneBridgeConstructor => {
 
     async reindex(): Promise<void> {
       console.error('Mock: Reindexing');
-    }
-
-    async echo(message: string): Promise<string> {
-      return `Mock echo: ${message}`;
     }
   }
 

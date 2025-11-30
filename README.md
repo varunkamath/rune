@@ -1,50 +1,73 @@
-# Rune - High-Performance MCP Code Context Engine
+# Rune
 
-Rune is a blazing-fast MCP (Model Context Protocol) server that provides
-multi-modal code search capabilities for AI coding agents. With embedded Qdrant
-vector database, it delivers literal, regex, symbol, semantic, and hybrid search
-across multi-repository workspaces.
+Rune is an MCP (Model Context Protocol) server that provides code search
+capabilities for AI coding agents. It combines full-text search, AST-based
+symbol extraction, and vector similarity search into a unified interface
+accessible through the MCP protocol.
 
-## 🚀 Quick Start
+## Overview
 
-### 🐳 Docker Deployment (Production Ready)
+Rune indexes codebases and exposes search functionality through four MCP tools:
+
+- **search**: Multi-modal code search with five modes (literal, regex, symbol,
+  semantic, hybrid)
+- **index_status**: Query indexing statistics and engine state
+- **reindex**: Trigger manual re-indexing of repositories
+- **configure**: Adjust engine settings at runtime
+
+The server is built with a Rust core for search operations, connected to a
+TypeScript MCP interface via NAPI-RS bindings.
+
+## Architecture
+
+```
+AI Agent (Claude, Copilot, etc.)
+    |
+    | MCP Protocol (JSON-RPC 2.0 over stdio)
+    v
+TypeScript MCP Server (index.ts)
+    |
+    | NAPI-RS Bridge
+    v
+Rust Core Engine
+    |
+    +-- Tantivy (full-text indexing)
+    +-- Tree-sitter (AST parsing, 16 languages)
+    +-- RocksDB (file metadata)
+    +-- Qdrant (vector storage for semantic search)
+    +-- ONNX Runtime (embeddings via all-MiniLM-L6-v2)
+```
+
+## Installation
+
+### Docker
 
 ```bash
-# Build the Docker image
 docker build -t rune-mcp:latest .
 
-# Start Rune with embedded Qdrant
 docker run -d \
   --name rune \
   -v ~/Projects:/workspace:ro \
   -v ~/.rune:/data \
-  -p 6333:6333 \
-  -p 6334:6334 \
   rune-mcp:latest
 ```
 
-**Note**: The container includes both Rune MCP server and Qdrant vector
-database, managed by s6-overlay for process supervision.
+### From Source
 
-### Verify Installation
+Requires Rust and Node.js 22+.
 
 ```bash
-# Check container status
-docker logs rune --tail 50
-
-# Verify Qdrant is running
-curl http://localhost:6333/
-# Should return: {"title":"qdrant - vector search engine","version":"1.15.4",...}
+pnpm install
+cargo build --release
+pnpm build
 ```
 
-## 📦 Installation & Setup
+## IDE Configuration
 
-### For Claude Desktop
+### Claude Desktop
 
-Add to Claude Desktop configuration:
-
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`  
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
+or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json
 {
@@ -62,23 +85,15 @@ Add to Claude Desktop configuration:
         "rune-mcp:latest",
         "node",
         "/app/dist/index.js"
-      ],
-      "env": {}
+      ]
     }
   }
 }
 ```
 
-**Note**: The container will start automatically when Claude Desktop connects.
-This mounts your entire home directory as read-only. Customize the first volume
-mount (e.g., `"${HOME}/code:/workspace:ro"`) to limit access to specific
-directories.
+### Claude Code
 
-**Restart Claude Desktop** to activate Rune
-
-### For Claude Code
-
-Create or edit `.claude/mcp.json` in your project root:
+Create `.claude/mcp.json` in your project:
 
 ```json
 {
@@ -96,17 +111,13 @@ Create or edit `.claude/mcp.json` in your project root:
         "rune-mcp:latest",
         "node",
         "/app/dist/index.js"
-      ],
-      "env": {}
+      ]
     }
   }
 }
 ```
 
-**Note**: The container starts automatically when Claude Code connects. It
-indexes your current project directory.
-
-### For VS Code with GitHub Copilot
+### VS Code with GitHub Copilot
 
 Add to `.vscode/settings.json`:
 
@@ -132,7 +143,7 @@ Add to `.vscode/settings.json`:
 }
 ```
 
-### For Cursor IDE
+### Cursor
 
 Add to `.cursor/mcp.json`:
 
@@ -158,114 +169,105 @@ Add to `.cursor/mcp.json`:
 }
 ```
 
-### For Continue.dev (Agent Mode)
+## Search Modes
 
-Create `.continue/mcpServers/rune.json`:
+### Literal
 
-```json
-{
-  "command": "docker",
-  "args": [
-    "run",
-    "--rm",
-    "-i",
-    "-v",
-    "${workspaceFolder}:/workspace:ro",
-    "-v",
-    "${HOME}/.rune:/data",
-    "rune-mcp:latest",
-    "node",
-    "/app/dist/index.js"
-  ],
-  "transport": "stdio"
-}
-```
+Full-text search using Tantivy. Searches for documents containing all query
+terms. Includes fuzzy matching fallback for typo tolerance (Levenshtein
+distance).
 
-### For Windsurf IDE
+### Regex
 
-Add to `~/.codeium/windsurf/mcp_config.json`:
+Pattern matching with compiled regex caching. Scans indexed files for matches.
 
-```json
-{
-  "mcpServers": {
-    "rune": {
-      "command": "docker",
-      "args": [
-        "run",
-        "--rm",
-        "-i",
-        "-v",
-        "${HOME}/Projects:/workspace:ro",
-        "-v",
-        "${HOME}/.rune:/data",
-        "rune-mcp:latest",
-        "node",
-        "/app/dist/index.js"
-      ]
-    }
-  }
-}
-```
+### Symbol
 
-## 🎯 Features
+AST-based search targeting language constructs. Extracts and searches functions,
+classes, structs, enums, traits, and other definitions.
 
-- **🔍 Multi-modal Search**: Literal, regex, symbol, semantic, and hybrid search
-  modes
-- **🚀 High Performance**: Rust core with sub-50ms search latency
-- **🌐 Language Agnostic**: Support for 100+ programming languages via
-  tree-sitter
-- **🧠 Semantic Understanding**: Real embeddings with all-MiniLM-L6-v2
-- **📁 Multi-Repository**: Search across multiple repositories simultaneously
-- **🔄 Real-time Indexing**: Automatic incremental indexing with file watching
-- **🐳 All-in-One Container**: Rune + Qdrant in a single Docker container
-- **🤖 MCP Compatible**: Works with Claude, Copilot, Cursor, and more
+### Semantic
 
-## 🛠️ Advanced Configuration
+Vector similarity search using embeddings. Queries are embedded with
+all-MiniLM-L6-v2 (384 dimensions) and matched against code chunks stored in
+Qdrant.
 
-### Custom Workspace Paths
+### Hybrid
+
+Combines literal, symbol, and semantic search results using Reciprocal Rank
+Fusion (RRF). Deduplicates by file path and line number, then ranks by combined
+score.
+
+## Supported Languages
+
+Tree-sitter parsers provide AST-aware indexing for:
+
+- Rust
+- JavaScript
+- TypeScript
+- Python
+- Go
+- Java
+- C/C++
+- C#
+- Ruby
+- PHP
+- HTML
+- CSS
+- JSON
+- YAML
+- TOML
+
+Additional languages are detected by file extension but indexed as plain text.
+
+## Configuration
+
+### Environment Variables
+
+| Variable                      | Default                                         | Description                                         |
+| ----------------------------- | ----------------------------------------------- | --------------------------------------------------- |
+| `RUNE_WORKSPACE`              | Current directory                               | Root directory to index                             |
+| `RUNE_CACHE_DIR`              | `.rune_cache`                                   | Directory for indices and metadata                  |
+| `RUNE_MAX_FILE_SIZE`          | `10485760`                                      | Maximum file size in bytes (10MB)                   |
+| `RUNE_INDEXING_THREADS`       | `4`                                             | Parallel indexing threads                           |
+| `RUNE_ENABLE_SEMANTIC`        | `true`                                          | Enable semantic search                              |
+| `RUNE_LANGUAGES`              | `rust,javascript,typescript,python,go,java,cpp` | Languages to index                                  |
+| `RUNE_FILE_WATCH_DEBOUNCE_MS` | `500`                                           | File watcher debounce delay                         |
+| `RUNE_FUZZY_ENABLED`          | `true`                                          | Enable fuzzy matching                               |
+| `RUNE_FUZZY_THRESHOLD`        | `0.75`                                          | Minimum similarity for fuzzy matches                |
+| `RUNE_FUZZY_MAX_DISTANCE`     | `2`                                             | Maximum Levenshtein distance                        |
+| `RUNE_QUANTIZATION_MODE`      | `scalar`                                        | Vector quantization (none/scalar/binary/asymmetric) |
+| `QDRANT_URL`                  | `http://localhost:6334`                         | Qdrant gRPC endpoint                                |
+
+### Quantization Modes
+
+Vector quantization reduces memory usage for semantic search:
+
+- **none**: Full float32 precision (1536 bytes per vector)
+- **scalar**: int8 quantization (384 bytes per vector, 75% reduction)
+- **binary**: 1-bit quantization (48 bytes per vector, 97% reduction)
+- **asymmetric**: Binary storage with scalar queries (48 bytes per vector)
+
+### Multi-Agent Cache Isolation
+
+When running multiple agents on different projects, enable cache isolation to
+prevent lock conflicts:
 
 ```bash
-docker run -d \
-  --name rune \
-  -v /path/to/project1:/workspace/project1:ro \
-  -v /path/to/project2:/workspace/project2:ro \
-  -v ~/.rune:/data \
-  -e RUNE_INDEXING_THREADS=8 \
+docker run --rm -i \
+  -v "${PWD}:/workspace:ro" \
+  -v "${HOME}/.rune:/data" \
+  -e "RUNE_SHARED_CACHE=true" \
+  -e "RUNE_WORKSPACE_ID=${PWD}" \
   rune-mcp:latest
 ```
 
-### Using External Qdrant
+Each workspace receives a separate cache directory based on a SHA256 hash of its
+path.
 
-```bash
-docker run -d \
-  --name rune \
-  -v ~/Projects:/workspace:ro \
-  -e QDRANT_URL=http://your-qdrant:6334 \
-  rune-mcp:latest
-```
+## MCP Tools
 
-### Docker Compose
-
-```yaml
-services:
-  rune:
-    build: .
-    image: rune-mcp:latest
-    container_name: rune
-    volumes:
-      - ${HOME}/Projects:/workspace:ro
-      - ~/.rune:/data
-    environment:
-      - RUNE_INDEXING_THREADS=4
-      - RUNE_MAX_FILE_SIZE=10485760
-    restart: unless-stopped
-```
-
-## 🔧 MCP Tools Available
-
-### `search`
-
-Multi-modal code search with various modes:
+### search
 
 ```json
 {
@@ -273,24 +275,15 @@ Multi-modal code search with various modes:
   "arguments": {
     "query": "handleRequest",
     "mode": "hybrid",
-    "limit": 10,
-    "file_pattern": "*.ts",
-    "repositories": ["repo1", "repo2"]
+    "limit": 50,
+    "offset": 0,
+    "filePatterns": ["*.ts"],
+    "repositories": ["repo1"]
   }
 }
 ```
 
-**Search Modes:**
-
-- `literal`: Exact text matching
-- `regex`: Regular expression patterns
-- `symbol`: AST-based symbol search (functions, classes, etc.)
-- `semantic`: Embedding-based similarity search
-- `hybrid`: Combined keyword and semantic search (best results)
-
-### `index_status`
-
-Get current indexing statistics:
+### index_status
 
 ```json
 {
@@ -298,247 +291,108 @@ Get current indexing statistics:
 }
 ```
 
-Returns file count, symbol count, cache size, and indexing progress.
+Returns indexed file count, symbol count, cache size, and file watcher status.
 
-### `reindex`
-
-Trigger manual reindexing:
+### reindex
 
 ```json
 {
   "tool": "reindex",
   "arguments": {
-    "repositories": ["specific-repo"] // Optional, reindexes all if omitted
+    "repositories": ["specific-repo"]
   }
 }
 ```
 
-### `configure`
+Manual reindexing is typically unnecessary; the file watcher handles changes
+automatically.
 
-Update configuration at runtime:
+### configure
 
 ```json
 {
   "tool": "configure",
   "arguments": {
-    "max_file_size": 20971520,
-    "indexing_threads": 8
+    "workspaceRoots": ["/path/to/project"],
+    "enableSemantic": true
   }
 }
 ```
 
-## 🔒 Cache Isolation & Multi-Agent Support
+## Storage
 
-Rune now provides workspace-specific cache isolation to prevent data mixing when
-multiple agents work on different projects:
-
-### How It Works
-
-- Each workspace gets a unique cache directory based on its path hash
-- Separate RocksDB metadata, Tantivy indices, and Qdrant collections per project
-- Automatic cleanup of stale locks on startup
-- Graceful shutdown ensures proper resource cleanup
-
-### Docker Configuration
-
-When using Docker, each project's cache is isolated:
-
-```bash
-# Cache stored at ~/.rune/<workspace-hash>/
-docker run --rm -i \
-  -v "${PWD}:/workspace:ro" \
-  -v "${HOME}/.rune:/data" \
-  -e "RUNE_WORKSPACE_ID=${PWD}" \
-  rune-mcp:latest
-```
-
-### Benefits
-
-- **No data mixing**: Each project has isolated search indices
-- **Concurrent usage**: Multiple agents can work on different projects
-  simultaneously
-- **Automatic recovery**: Stale locks are cleaned up automatically
-- **Clean separation**: Each workspace maintains its own metadata and vector
+- **Tantivy**: Full-text index with fields for path, content, language, symbols,
+  and repository
+- **RocksDB**: File metadata including path, size, modification time, Blake3
+  hash, and indexing timestamp
+- **Qdrant**: Vector embeddings for semantic search with workspace-isolated
   collections
 
-## 🐛 Troubleshooting
+## Caching
 
-### Check Container Status
+Multi-tier cache architecture:
 
-```bash
-# View logs
-docker logs rune
+- **L1**: In-memory DashMap with 10,000 entry capacity and 5-minute TTL
+- **L2**: RocksDB for persistent metadata
+- **L3**: Qdrant for vector storage
 
-# Check health
-docker exec rune curl http://localhost:3333/health
+Queries shorter than 2 characters bypass caching.
 
-# View indexing status
-docker exec rune curl http://localhost:3333/status
-```
+## File Watching
 
-### View Configuration Templates
+Rune monitors the workspace for changes using the `notify` crate with
+configurable debouncing. File events (create, modify, delete) trigger
+incremental reindexing.
 
-```bash
-# List available templates
-docker exec rune ls /config/
+Blake3 content hashing enables efficient change detection: files with unchanged
+hashes skip reindexing and only update their timestamp.
 
-# Get specific configuration
-docker exec rune cat /config/claude-desktop.json
-```
-
-### Reset and Restart
+## Development
 
 ```bash
-# Stop and remove container
-docker stop rune && docker rm rune
+# Build everything
+pnpm build
 
-# Clear cache (optional)
-rm -rf ~/.rune
+# Run with MCP Inspector
+pnpm inspect
 
-# Start fresh
-docker run -d --name rune -v ~/Projects:/workspace:ro rune-mcp:latest
-```
-
-### Common Issues
-
-**Container won't start:**
-
-- Check if port 3333 is already in use
-- Ensure Docker has enough resources (2GB RAM minimum)
-- Verify volume mount paths exist
-
-**Slow indexing:**
-
-- Increase `RUNE_INDEXING_THREADS` environment variable
-- Check disk I/O performance
-- Exclude large binary files or node_modules
-
-**Semantic search not working:**
-
-- Qdrant may still be initializing (wait 30 seconds)
-- Check Qdrant health: `docker exec rune curl http://localhost:6334/health`
-- Verify `RUNE_ENABLE_SEMANTIC=true` is set
-
-## 📊 Performance
-
-- **Indexing**: ~1000 files/second
-- **Literal Search**: <10ms
-- **Regex Search**: <50ms
-- **Symbol Search**: <20ms
-- **Semantic Search**: <200ms
-- **Hybrid Search**: <250ms
-- **Memory Usage**: 512MB-2GB (depending on workspace size)
-- **Container Size**: ~400MB
-
-## 🏗️ Architecture
-
-```text
-┌─────────────────────────────────────────────┐
-│           AI Coding Agent (Claude, etc)      │
-└─────────────────┬───────────────────────────┘
-                  │ MCP Protocol (JSON-RPC)
-┌─────────────────▼───────────────────────────┐
-│              Docker Container                │
-│  ┌─────────────────────────────────────┐    │
-│  │     Rune MCP Server (Node.js)       │    │
-│  └──────────────┬──────────────────────┘    │
-│                 │ NAPI Bridge               │
-│  ┌──────────────▼──────────────────────┐    │
-│  │     Rust Core Engine                │    │
-│  │  • Tantivy (full-text search)       │    │
-│  │  • Tree-sitter (AST parsing)        │    │
-│  │  • ONNX Runtime (embeddings)        │    │
-│  └──────────────┬──────────────────────┘    │
-│                 │                           │
-│  ┌──────────────▼──────────────────────┐    │
-│  │     Qdrant Vector Database          │    │
-│  │     (Embedded in container)         │    │
-│  └──────────────────────────────────────┘    │
-└──────────────────────────────────────────────┘
-```
-
-## 🔒 Security
-
-- ✅ Runs as non-root user (uid 1001)
-- ✅ Read-only workspace mount recommended
-- ✅ SBOM available for vulnerability scanning
-- ✅ Signed with Cosign/Sigstore
-- ✅ No network access required (except MCP)
-- ✅ Isolated data directory
-
-## 🧑‍💻 Development
-
-### Building from Source
-
-```bash
-# Clone repository
-git clone https://github.com/rune-mcp/server.git
-cd rune
-
-# Build Docker image
-docker build -t rune-mcp:local .
-
-# Or build locally (requires Rust 1.89 + Node.js 22)
-cargo build --release
-cd mcp-server && npm install && npm run build
-```
-
-### Running Tests
-
-```bash
-# Rust tests
+# Run tests
 cargo test
+pnpm test
 
-# TypeScript tests
-cd mcp-server && npm test
-
-# Benchmarks
+# Run benchmarks
 cargo bench
 ```
 
-### Environment Variables
+## Troubleshooting
 
-| Variable                | Description                | Default                         |
-| ----------------------- | -------------------------- | ------------------------------- |
-| `RUNE_WORKSPACE`        | Workspace root to index    | `/workspace`                    |
-| `RUNE_CACHE_DIR`        | Cache directory            | `/data/cache`                   |
-| `RUNE_SHARED_CACHE`     | Enable workspace isolation | `true` (Docker)                 |
-| `RUNE_WORKSPACE_ID`     | Workspace identifier       | Auto-generated from path        |
-| `RUNE_MAX_FILE_SIZE`    | Max file size in bytes     | `10485760` (10MB)               |
-| `RUNE_INDEXING_THREADS` | Number of indexing threads | CPU count                       |
-| `RUNE_ENABLE_SEMANTIC`  | Enable semantic search     | `true`                          |
-| `RUNE_LANGUAGES`        | Comma-separated languages  | `rust,js,ts,python,go,java,cpp` |
-| `QDRANT_URL`            | Qdrant server URL          | `http://localhost:6334`         |
+### Container Logs
 
-## 📝 License
+```bash
+docker logs rune
+```
 
-MIT License - see [LICENSE](LICENSE) for details.
+### Reset Cache
 
-## 🙏 Acknowledgments
+```bash
+docker stop rune && docker rm rune
+rm -rf ~/.rune
+```
 
-- [MCP](https://modelcontextprotocol.io) by Anthropic
+### Semantic Search Not Working
+
+Qdrant must be running and accessible at the configured URL (default:
+`http://localhost:6334`). The Docker image includes an embedded Qdrant instance.
+
+## License
+
+MIT
+
+## Acknowledgments
+
+- [Model Context Protocol](https://modelcontextprotocol.io) by Anthropic
 - [Tree-sitter](https://tree-sitter.github.io) for AST parsing
 - [Tantivy](https://github.com/quickwit-oss/tantivy) for full-text search
 - [Qdrant](https://qdrant.tech) for vector storage
 - [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)
   for embeddings
-
-## 🤝 Contributing
-
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md)
-for details.
-
-## 📬 Support
-
-- **Issues**: [GitHub Issues](https://github.com/rune-mcp/server/issues)
-- **Discussions**:
-  [GitHub Discussions](https://github.com/rune-mcp/server/discussions)
-- **Security**: Report vulnerabilities via GitHub Security Advisories
-
----
-
-**Ready to supercharge your AI coding workflow?** Get started with one command:
-
-```bash
-docker run -d --name rune -v ~/Projects:/workspace:ro ghcr.io/rune-mcp/server:latest
-```

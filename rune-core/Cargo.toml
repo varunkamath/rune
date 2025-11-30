@@ -49,25 +49,18 @@ rocksdb = { workspace = true }
 notify = { workspace = true }
 notify-debouncer-full = { workspace = true }
 
-# Git integration
-git2 = { workspace = true }
-
 # Utils
 dashmap = { workspace = true }
 parking_lot = { workspace = true }
 rayon = { workspace = true }
 once_cell = { workspace = true }
-indexmap = { workspace = true }
 
 # Additional dependencies for rune-core
 walkdir = "2.5"
 ignore = "0.4"                                 # gitignore-aware file traversal
 blake3 = "1.8"                                 # fast hashing
 uuid = { version = "1.18", features = ["v4"] } # UUID generation
-lru = "0.16"
-bytes = "1.11"
 futures = "0.3"
-crossbeam-channel = "0.5"
 num_cpus = "1.17"
 strsim = "0.11"                                # Fuzzy string matching with Levenshtein distance
 

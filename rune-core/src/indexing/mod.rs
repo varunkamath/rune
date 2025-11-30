@@ -471,10 +471,6 @@ impl Indexer {
 
         Ok(())
     }
-
-    pub fn get_tantivy_indexer(&self) -> &TantivyIndexer {
-        &self.tantivy_indexer
-    }
 }
 
 #[cfg(test)]

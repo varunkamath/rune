@@ -7,7 +7,6 @@ pub mod test_helpers {
     use crate::{
         Config,
         indexing::{Indexer, tantivy_indexer::TantivyIndexer},
-        search::{SearchMode, SearchQuery, SearchResult},
         storage::StorageBackend,
     };
     use anyhow::Result;
@@ -260,43 +259,5 @@ date3 = "2023-06-30"
                 .to_string(),
             },
         ]
-    }
-
-    /// Assert that search results contain expected content
-    #[allow(dead_code)] // Kept for future test development
-    pub fn assert_results_contain(results: &[SearchResult], expected_content: &[&str]) {
-        for content in expected_content {
-            assert!(
-                results.iter().any(|r| r.content.contains(content)),
-                "Results should contain '{}'",
-                content
-            );
-        }
-    }
-
-    /// Assert that all results are from specific file extensions
-    #[allow(dead_code)] // Kept for future test development
-    pub fn assert_results_file_type(results: &[SearchResult], extension: &str) {
-        for result in results {
-            assert_eq!(
-                result.file_path.extension().and_then(|e| e.to_str()),
-                Some(extension),
-                "All results should be from .{} files",
-                extension
-            );
-        }
-    }
-
-    /// Create a basic search query for testing
-    #[allow(dead_code)] // Kept for future test development
-    pub fn create_test_query(query: &str, mode: SearchMode) -> SearchQuery {
-        SearchQuery {
-            query: query.to_string(),
-            mode,
-            limit: 50,
-            offset: 0,
-            repositories: None,
-            file_patterns: None,
-        }
     }
 }

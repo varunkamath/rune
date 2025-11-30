@@ -546,27 +546,18 @@ struct SemanticUnit {
 #[derive(Debug, Clone, PartialEq)]
 enum SemanticUnitKind {
     Function,
-    #[allow(dead_code)] // Will be used when method extraction is enhanced
-    Method,
     Class,
     Struct,
     Enum,
     Trait,
-    #[allow(dead_code)] // Will be used for TypeScript/Java interface support
-    Interface,
-    #[allow(dead_code)] // Will be used for module-level chunking
-    Module,
     Import,
 }
 
 impl SemanticUnitKind {
     fn to_chunk_type(&self) -> ChunkType {
         match self {
-            Self::Function | Self::Method => ChunkType::Function,
-            Self::Class | Self::Struct | Self::Enum | Self::Trait | Self::Interface => {
-                ChunkType::Class
-            },
-            Self::Module => ChunkType::Block,
+            Self::Function => ChunkType::Function,
+            Self::Class | Self::Struct | Self::Enum | Self::Trait => ChunkType::Class,
             Self::Import => ChunkType::Import,
         }
     }

@@ -278,12 +278,6 @@ impl RuneBridge {
 
         Ok(())
     }
-
-    /// Simple echo function for testing the bridge
-    #[napi]
-    pub async fn echo(&self, message: String) -> Result<String> {
-        Ok(format!("Echo from Rust: {}", message))
-    }
 }
 
 // JavaScript-compatible structs for serialization

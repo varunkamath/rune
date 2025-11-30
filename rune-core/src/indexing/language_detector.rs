@@ -159,35 +159,6 @@ impl FromStr for Language {
 }
 
 impl Language {
-    pub fn get_comment_syntax(&self) -> CommentSyntax {
-        match self {
-            Language::Rust
-            | Language::Go
-            | Language::Java
-            | Language::Cpp
-            | Language::C
-            | Language::CSharp
-            | Language::Swift
-            | Language::Kotlin
-            | Language::Scala
-            | Language::JavaScript
-            | Language::TypeScript => CommentSyntax::CStyle,
-
-            Language::Python
-            | Language::Ruby
-            | Language::Shell
-            | Language::Yaml
-            | Language::Toml
-            | Language::Elixir => CommentSyntax::Hash,
-
-            Language::Haskell => CommentSyntax::DoubleDash,
-            Language::Html | Language::Xml => CommentSyntax::Xml,
-            Language::Css => CommentSyntax::CssStyle,
-            Language::Php => CommentSyntax::Mixed,
-            Language::Markdown | Language::Json | Language::Unknown => CommentSyntax::None,
-        }
-    }
-
     pub fn supports_tree_sitter(&self) -> bool {
         matches!(
             self,
@@ -209,17 +180,6 @@ impl Language {
                 | Language::Toml
         )
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum CommentSyntax {
-    CStyle,     // // and /* */
-    Hash,       // #
-    DoubleDash, // --
-    Xml,        // <!-- -->
-    CssStyle,   // /* */
-    Mixed,      // Multiple styles
-    None,
 }
 
 pub struct LanguageDetector;
