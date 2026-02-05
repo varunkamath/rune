@@ -15,7 +15,7 @@ describe('MCP Protocol Tests', () => {
             },
             mode: {
               type: 'string',
-              enum: ['literal', 'regex', 'symbol', 'semantic', 'hybrid'],
+              enum: ['symbol', 'semantic'],
               description: 'Search mode',
             },
             limit: {
@@ -31,8 +31,8 @@ describe('MCP Protocol Tests', () => {
       expect(searchTool.name).toBe('search');
       expect(searchTool.inputSchema.properties).toHaveProperty('query');
       expect(searchTool.inputSchema.properties).toHaveProperty('mode');
-      expect(searchTool.inputSchema.properties.mode.enum).toContain('literal');
-      expect(searchTool.inputSchema.properties.mode.enum).toContain('regex');
+      expect(searchTool.inputSchema.properties.mode.enum).toContain('symbol');
+      expect(searchTool.inputSchema.properties.mode.enum).toContain('semantic');
     });
 
     it('should define index_status tool correctly', () => {
@@ -126,7 +126,7 @@ describe('MCP Protocol Tests', () => {
   describe('Error Handling', () => {
     it('should handle invalid search mode', () => {
       const invalidMode = 'invalid_mode';
-      const validModes = ['literal', 'regex', 'symbol', 'semantic', 'hybrid'];
+      const validModes = ['symbol', 'semantic'];
 
       expect(validModes).not.toContain(invalidMode);
     });
@@ -134,7 +134,7 @@ describe('MCP Protocol Tests', () => {
     it('should validate required parameters', () => {
       const searchParams = {
         // Missing 'query' which is required
-        mode: 'literal',
+        mode: 'symbol',
         limit: 10,
       };
 

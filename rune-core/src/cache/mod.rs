@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use dashmap::DashMap;
-use tracing::{debug, trace};
+use tracing::{debug, error, trace};
 
 use crate::search::{SearchQuery, SearchResponse};
 
@@ -306,17 +306,31 @@ impl MultiTierCache {
             loop {
                 interval.tick().await;
 
-                let mut expired_count = 0;
-                cache.retain(|_, entry| {
-                    let should_keep = !entry.is_expired(ttl);
-                    if !should_keep {
-                        expired_count += 1;
-                    }
-                    should_keep
-                });
+                // Use catch_unwind to prevent panics from crashing the background task
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    let mut expired_count = 0;
+                    cache.retain(|_, entry| {
+                        let should_keep = !entry.is_expired(ttl);
+                        if !should_keep {
+                            expired_count += 1;
+                        }
+                        should_keep
+                    });
+                    expired_count
+                }));
 
-                if expired_count > 0 {
-                    trace!("Cleaned up {} expired L1 cache entries", expired_count);
+                match result {
+                    Ok(expired_count) => {
+                        if expired_count > 0 {
+                            trace!("Cleaned up {} expired L1 cache entries", expired_count);
+                        }
+                    },
+                    Err(e) => {
+                        error!(
+                            "Cache cleanup task panicked: {:?}. Continuing operation.",
+                            e.downcast_ref::<&str>().copied().unwrap_or("unknown panic")
+                        );
+                    },
                 }
             }
         });

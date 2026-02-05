@@ -78,7 +78,7 @@ repos:
 
   # Markdown formatting
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.45.0
+    rev: v0.47.0
     hooks:
       - id: markdownlint
         args: ["--fix"]
@@ -86,7 +86,7 @@ repos:
 
   # YAML formatting
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.37.1
+    rev: v1.38.0
     hooks:
       - id: yamllint
         args: ["-d", "{extends: relaxed, rules: {line-length: {max: 120}}}"]
@@ -108,7 +108,7 @@ repos:
         args: ["--ignore", "DL3008"]
 
   - repo: https://github.com/reteps/dockerfmt
-    rev: v0.3.7
+    rev: v0.3.9
     hooks:
       - id: dockerfmt
         args:

@@ -146,7 +146,9 @@ impl EmbeddingGenerator {
 
         // Run inference with named inputs and extract embeddings
         let embeddings_view = {
-            let mut session_guard = session.lock().unwrap();
+            let mut session_guard = session
+                .lock()
+                .map_err(|e| anyhow::anyhow!("Session mutex poisoned: {:?}", e))?;
             let outputs = session_guard
                 .run(ort::inputs![
                     "input_ids" => input_ids_tensor,
@@ -335,7 +337,9 @@ impl EmbeddingGenerator {
 
         // Run batch inference and extract embeddings
         let embeddings_array = {
-            let mut session_guard = session.lock().unwrap();
+            let mut session_guard = session
+                .lock()
+                .map_err(|e| anyhow::anyhow!("Session mutex poisoned: {:?}", e))?;
             let outputs = session_guard
                 .run(ort::inputs![
                     "input_ids" => input_ids_tensor,

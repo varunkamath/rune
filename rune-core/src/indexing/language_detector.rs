@@ -159,6 +159,8 @@ impl FromStr for Language {
 }
 
 impl Language {
+    /// Returns true if this language has tree-sitter grammar support in the codebase.
+    /// Only languages with actual tree-sitter grammars in symbol_extractor.rs are listed.
     pub fn supports_tree_sitter(&self) -> bool {
         matches!(
             self,
@@ -170,14 +172,6 @@ impl Language {
                 | Language::Java
                 | Language::Cpp
                 | Language::C
-                | Language::CSharp
-                | Language::Ruby
-                | Language::Php
-                | Language::Html
-                | Language::Css
-                | Language::Json
-                | Language::Yaml
-                | Language::Toml
         )
     }
 }

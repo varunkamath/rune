@@ -119,7 +119,9 @@ impl AstChunker {
             self.initialize_queries(language, ts_language)?;
         }
 
-        Ok(self.parsers.get_mut(&language).unwrap())
+        self.parsers.get_mut(&language).ok_or_else(|| {
+            anyhow::anyhow!("Parser for {:?} not found after initialization", language)
+        })
     }
 
     /// Initialize language-specific queries

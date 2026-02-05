@@ -54,16 +54,19 @@ impl StorageBackend {
         Ok(files)
     }
 
+    /// Get the number of indexed files.
+    /// Uses iterator counting instead of collecting all files for better performance.
     pub async fn get_file_count(&self) -> Result<usize> {
-        let files = self.list_files().await?;
-        Ok(files.len())
+        let db = self.db.read();
+        let count = db.iterator(rocksdb::IteratorMode::Start).count();
+        Ok(count)
     }
 
+    /// Get an estimated symbol count.
+    /// This is an approximation based on average symbols per file (~20).
+    /// For exact counts, symbols would need to be stored in metadata.
     pub async fn get_symbol_count(&self) -> Result<usize> {
-        // Count symbols from all indexed files
-        // This is an approximation based on average symbols per file
         let file_count = self.get_file_count().await?;
-        // Estimate average of 20 symbols per file (can be refined with actual parsing)
         Ok(file_count * 20)
     }
 

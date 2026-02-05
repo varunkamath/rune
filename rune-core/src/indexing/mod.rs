@@ -249,7 +249,7 @@ impl Indexer {
                                 let mut updated_metadata = existing_metadata;
                                 updated_metadata.indexed_at = std::time::SystemTime::now()
                                     .duration_since(std::time::UNIX_EPOCH)
-                                    .unwrap()
+                                    .unwrap_or_default()
                                     .as_secs();
                                 if let Err(e) = storage
                                     .store_file_metadata(&file_path, updated_metadata)
@@ -303,7 +303,7 @@ impl Indexer {
                             size: content.len() as u64,
                             modified: std::time::SystemTime::now()
                                 .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap()
+                                .unwrap_or_default()
                                 .as_secs(),
                             language: language_detector::LanguageDetector::detect(
                                 &file_path,
@@ -314,7 +314,7 @@ impl Indexer {
                             hash: content_hash,
                             indexed_at: std::time::SystemTime::now()
                                 .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap()
+                                .unwrap_or_default()
                                 .as_secs(),
                         };
 
@@ -366,7 +366,7 @@ impl Indexer {
                             let mut updated_metadata = existing_metadata;
                             updated_metadata.indexed_at = std::time::SystemTime::now()
                                 .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap()
+                                .unwrap_or_default()
                                 .as_secs();
                             storage.store_file_metadata(&path, updated_metadata).await?;
                             false
@@ -412,7 +412,7 @@ impl Indexer {
                         size: content.len() as u64,
                         modified: std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap()
+                            .unwrap_or_default()
                             .as_secs(),
                         language: language_detector::LanguageDetector::detect(
                             &path,
@@ -423,7 +423,7 @@ impl Indexer {
                         hash: content_hash,
                         indexed_at: std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap()
+                            .unwrap_or_default()
                             .as_secs(),
                     };
 

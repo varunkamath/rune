@@ -7,9 +7,6 @@ pub mod storage;
 #[cfg(feature = "semantic")]
 pub mod embedding;
 
-#[cfg(test)]
-mod test_utils;
-
 use std::path::PathBuf;
 use std::sync::Arc;
 

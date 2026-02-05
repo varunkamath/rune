@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, trace, warn};
 
 use super::{SearchQuery, SearchResult};
 use crate::{Config, embedding::EmbeddingPipeline, storage::StorageBackend};
@@ -75,14 +75,23 @@ impl SemanticSearcher {
                     continue;
                 }
 
+                // Extract context lines from the source file
+                let (context_before, context_after) = Self::extract_context(
+                    &result.file_path,
+                    result.start_line,
+                    result.end_line,
+                    2, // 2 lines of context before/after
+                )
+                .await;
+
                 results.push(SearchResult {
                     file_path: PathBuf::from(&result.file_path),
                     repository: self.extract_repo_from_path(&result.file_path),
                     line_number: result.start_line,
                     column: 0,
                     content: result.content.clone(),
-                    context_before: Vec::new(),
-                    context_after: Vec::new(),
+                    context_before,
+                    context_after,
                     score: result.score,
                     match_type: super::MatchType::Semantic,
                 });
@@ -159,6 +168,58 @@ impl SemanticSearcher {
         }
         false
     }
+
+    /// Extract context lines before and after the match from a file.
+    /// Returns (context_before, context_after) with up to `context_lines` lines each.
+    async fn extract_context(
+        file_path: &str,
+        start_line: usize,
+        end_line: usize,
+        context_lines: usize,
+    ) -> (Vec<String>, Vec<String>) {
+        const MAX_CONTEXT_LINES: usize = 3;
+        let context_lines = context_lines.min(MAX_CONTEXT_LINES);
+
+        // Try to read the file
+        let content = match tokio::fs::read_to_string(file_path).await {
+            Ok(c) => c,
+            Err(e) => {
+                trace!("Could not read file for context: {}: {}", file_path, e);
+                return (Vec::new(), Vec::new());
+            },
+        };
+
+        let lines: Vec<&str> = content.lines().collect();
+        let total_lines = lines.len();
+
+        // Calculate line indices (0-based internally, but start_line/end_line are 1-based)
+        let start_idx = start_line.saturating_sub(1);
+        let end_idx = end_line.min(total_lines);
+
+        // Extract context before
+        let context_before: Vec<String> = if start_idx > 0 {
+            let before_start = start_idx.saturating_sub(context_lines);
+            lines[before_start..start_idx]
+                .iter()
+                .map(|s| s.to_string())
+                .collect()
+        } else {
+            Vec::new()
+        };
+
+        // Extract context after
+        let context_after: Vec<String> = if end_idx < total_lines {
+            let after_end = (end_idx + context_lines).min(total_lines);
+            lines[end_idx..after_end]
+                .iter()
+                .map(|s| s.to_string())
+                .collect()
+        } else {
+            Vec::new()
+        };
+
+        (context_before, context_after)
+    }
 }
 
 #[cfg(test)]
@@ -166,25 +227,27 @@ mod tests {
     use super::*;
     use crate::storage::StorageBackend;
     use std::sync::Arc;
-    use tempfile::tempdir;
+    use tempfile::{TempDir, tempdir};
 
-    fn create_test_config() -> Arc<Config> {
-        Arc::new(Config {
-            workspace_roots: vec![tempdir().unwrap().path().to_path_buf()],
-            workspace_dir: tempdir().unwrap().path().to_string_lossy().to_string(),
-            cache_dir: tempdir().unwrap().path().to_path_buf(),
+    fn create_test_config() -> (Arc<Config>, TempDir) {
+        let temp_dir = tempdir().unwrap();
+        let config = Arc::new(Config {
+            workspace_roots: vec![temp_dir.path().to_path_buf()],
+            workspace_dir: temp_dir.path().to_string_lossy().to_string(),
+            cache_dir: temp_dir.path().join("cache"),
             max_file_size: 10 * 1024 * 1024,
             indexing_threads: 1,
             enable_semantic: true,
             languages: vec!["rust".to_string()],
             file_watch_debounce_ms: 500,
-        })
+        });
+        (config, temp_dir)
     }
 
     #[tokio::test]
     async fn test_semantic_searcher_initialization_without_qdrant() {
         // When Qdrant is not available, the searcher should initialize but pipeline should be None
-        let config = create_test_config();
+        let (config, _temp_dir) = create_test_config();
         let storage = StorageBackend::new(&config.cache_dir).await.unwrap();
 
         // This test will pass regardless of Qdrant availability
@@ -204,10 +267,11 @@ mod tests {
             std::env::set_var("QDRANT_URL", "http://127.0.0.1:99999"); // Non-existent port
         }
 
+        let temp_dir = tempdir().unwrap();
         let config = Arc::new(Config {
             workspace_roots: vec![],
             workspace_dir: String::new(),
-            cache_dir: tempdir().unwrap().path().to_path_buf(),
+            cache_dir: temp_dir.path().join("cache"),
             max_file_size: 10 * 1024 * 1024,
             indexing_threads: 1,
             enable_semantic: false, // Disable semantic to ensure no pipeline
@@ -243,11 +307,13 @@ mod tests {
             !searcher.is_available(),
             "Searcher should not be available when semantic is disabled"
         );
+
+        drop(temp_dir); // Explicitly drop at end of test
     }
 
     #[tokio::test]
     async fn test_extract_repo_from_path() {
-        let config = create_test_config();
+        let (config, _temp_dir) = create_test_config();
         let storage = StorageBackend::new(&config.cache_dir).await.unwrap();
 
         // We need to test synchronously, so we'll test the helper method directly
@@ -268,7 +334,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_matches_patterns() {
-        let config = create_test_config();
+        let (config, _temp_dir) = create_test_config();
         let storage = StorageBackend::new(&config.cache_dir).await.unwrap();
         let searcher = SemanticSearcher {
             _config: config,
@@ -294,7 +360,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_search_with_filters() {
-        let config = create_test_config();
+        let (config, _temp_dir) = create_test_config();
         let storage = StorageBackend::new(&config.cache_dir).await.unwrap();
         let searcher = SemanticSearcher::new(config, storage).await.unwrap();
 
@@ -315,7 +381,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_clear_index_without_pipeline() {
-        let config = create_test_config();
+        let (config, _temp_dir) = create_test_config();
         let storage = StorageBackend::new(&config.cache_dir).await.unwrap();
         let searcher = SemanticSearcher::new(config, storage).await.unwrap();
 
@@ -325,10 +391,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_index_file_without_pipeline() {
+        let temp_dir = tempdir().unwrap();
         let config = Arc::new(Config {
             workspace_roots: vec![],
             workspace_dir: String::new(),
-            cache_dir: tempdir().unwrap().path().to_path_buf(),
+            cache_dir: temp_dir.path().join("cache"),
             max_file_size: 10 * 1024 * 1024,
             indexing_threads: 1,
             enable_semantic: false,
